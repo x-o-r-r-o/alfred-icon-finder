@@ -38,7 +38,11 @@ class Mock:
             m = re.fullmatch(r"iconify_icons_(.+)\.json", f)
             if m:
                 self.icons[m.group(1)] = json.loads(fixture(f))
-        self.svgl = fixture("svgl_all.json", True).replace("https://svgl.app/library/", self.base + "/svgl/library/")
+        svgl = json.loads(fixture("svgl_all.json", True).replace("https://svgl.app/library/", self.base + "/svgl/library/"))
+        lib = self.base + "/svgl/library/"
+        svgl += [{"id": 90001, "title": "Zzcurrent", "category": "Test", "route": {"light": lib + "zzcurrent_light.svg", "dark": lib + "zzcurrent_dark.svg"}},
+                 {"id": 90002, "title": "Zztruncated", "category": "Test", "route": lib + "truncated.svg"}]
+        self.svgl = json.dumps(svgl)
 
     def reset(self):
         self.hits.clear()
@@ -88,6 +92,10 @@ class Mock:
                         return self.send(200, fixture(f"svg/svgl__{m.group(1)}.svg"), "image/svg+xml")
                     if m.group(1).startswith("notsvg"):
                         return self.send(200, "<html>oops</html>", "text/html")
+                    if m.group(1).startswith("truncated"):
+                        return self.send(200, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0', "image/svg+xml")
+                    if m.group(1).startswith("zzcurrent"):
+                        return self.send(200, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="currentColor"/></svg>', "image/svg+xml")
                     return self.send(200, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="#e11"/></svg>', "image/svg+xml")
                 if p == "/fonts":
                     body = fixture("google_fonts_metadata.json", True)
@@ -353,6 +361,12 @@ class JsxTests(unittest.TestCase):
         self.assertIn("title={\"say \\\"hi\\\"\"}", out)
         self.assertIn("function SvglLogo(props)", out)
 
+    def test_svg_prefixed_tags(self):
+        # audit 1: closing tags lost their "svg:" prefix only on the opening side
+        out = self.jsx('<svg:svg xmlns:svg="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><svg:path d="M0"></svg:path></svg:svg>')
+        self.assertIn("<path d=\"M0\"></path></svg>", out)
+        self.assertNotIn("svg:", out)
+
     def test_component_names(self):
         self.assertEqual(E.js("componentName", "mdi:home-outline"), "MdiHomeOutline")
         self.assertEqual(E.js("componentName", "123-go"), "Icon123Go")
@@ -499,6 +513,10 @@ class FontParsingTests(unittest.TestCase):
         self.assertIn('const spaceMono = Space_Mono({ weight: ["400", "700"], style: ["normal", "italic"], subsets: ["latin"], display: "swap" });', s)
         self.assertNotIn("weight:", E.js("nextFontSnippet", self.slim["Inter"]))
         self.assertIn("const sourceSerif4 = Source_Serif_4(", E.js("nextFontSnippet", self.slim["Source Serif 4"]))
+
+    def test_css2_without_weights(self):
+        # audit 1: a family with no listed styles produced "Family:wght@" (a 400 error)
+        self.assertEqual(E.js("css2Family", {"n": "Odd Font", "w": [], "a": [], "s": []}), "Odd+Font")
 
     def test_bad_metadata(self):
         out = E.run("test", "slimFonts", json.dumps([{"nope": 1}]))
@@ -694,7 +712,7 @@ class IconFilterTests(unittest.TestCase):
         MOCK.mode["iconify"] = 429
         e = self.e
         e.sf("icon", "mdi:home")
-        self.assertTrue(os.path.exists(os.path.join(e.cache, "ratelimited")))
+        self.assertTrue(os.path.exists(os.path.join(e.cache, "ratelimited-iconify")))
         self.assertEqual(e.files("png", ".fail"), [])  # not marked broken: retried later
         MOCK.reset()
         d = e.sf("icon", "mdi:home")
@@ -718,6 +736,96 @@ class IconFilterTests(unittest.TestCase):
         self.assertEqual(sorted({f.split("/")[0] for f in self.e.files("png", ".png")}), ["c000000", "ce5e7eb"])
         box = ink_box(os.path.join(self.e.cache, "png", "ce5e7eb", "iconify", "mdi", "home.png"))
         self.assertGreater(min(box["rgb"]), 200)
+
+
+class Audit1Tests(unittest.TestCase):
+    def setUp(self):
+        MOCK.reset()
+        self.e = Env()
+
+    def test_truncated_svg_is_rejected(self):
+        self.assertFalse(E.js("isSvg", '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0'))
+        self.assertFalse(E.js("isSvg", "<html><svg></svg></html>"))
+        self.assertTrue(E.js("isSvg", '<?xml version="1.0"?>\n<!-- x --><svg/>'))
+        self.assertTrue(E.js("isSvg", fixture("svg/mdi__home.svg", True)))
+        self.e.sf("logo", "zztruncated")
+        d = self.e.sf("logo", "zztruncated")
+        self.assertEqual(d["items"][0]["icon"]["path"], "icons/broken.png")
+        out = self.e.action("svg", f"svgl:{MOCK.base}/svgl/library/truncated.svg")
+        self.assertEqual(out.stdout, "")
+        self.assertIn("not an SVG", out.stderr)
+
+    def test_offline_previews_are_not_marked_broken(self):
+        e = self.e
+        e.sf("icon", "home")  # search cached, previews rendered
+        shutil.rmtree(os.path.join(e.cache, "png"))
+        shutil.rmtree(os.path.join(e.cache, "svg"))
+        d = e.sf("icon", "home", IF_ICONIFY_API=CLOSED)
+        self.assertEqual(d["items"][0]["icon"]["path"], "icons/pending.png")
+        self.assertEqual(e.files("png", ".fail"), [])
+        self.assertTrue(os.path.exists(os.path.join(e.cache, "offline-iconify")))
+        d = e.sf("icon", "home", IF_ICONIFY_API=CLOSED)
+        self.assertNotIn("rerun", d)  # backing off: no rerun loop while offline
+        os.utime(os.path.join(e.cache, "offline-iconify"), (time.time() - 120,) * 2)
+        d = e.sf("icon", "home")
+        d = e.sf("icon", "home")
+        self.assertTrue(d["items"][0]["icon"]["path"].startswith("/"))
+
+    def test_logo_tiles_colour_current_color(self):
+        self.e.sf("logo", "zzcurrent")
+        d = self.e.sf("logo", "zzcurrent")
+        paths = {i["title"]: i["icon"]["path"] for i in d["items"]}
+        dark = ink_box(paths["Zzcurrent · Dark"], alpha=250)
+        w, h, rows = read_png(paths["Zzcurrent · Dark"])
+        self.assertEqual(pixel(rows, 64, 64)[:3], (255, 255, 255))  # currentColor drawn white on the dark tile
+        w, h, rows = read_png(paths["Zzcurrent · Light"])
+        self.assertEqual(pixel(rows, 64, 64)[:3], (0, 0, 0))
+
+    def test_png_keeps_proportions(self):
+        ident = f"svgl:{MOCK.base}/svgl/library/github_wordmark_light.svg"
+        self.e.action("png", ident, png_size="512")
+        w, h, _ = read_png(os.path.join(self.e.cache, "out", "github_wordmark_light-512.png"))
+        self.assertEqual((w, h), (512, 139))
+
+    def test_set_list_offline(self):
+        d = self.e.sf("icon", "@", IF_ICONIFY_API=CLOSED)
+        self.assertEqual(titles(d)[0], "Couldn’t load the list of icon sets")
+        d = self.e.sf("icon", "arrow @lucide", IF_ICONIFY_API=CLOSED)
+        self.assertEqual(titles(d), ["You’re offline"])  # searched, not stuck on set suggestions
+
+    def test_prune_throttle_search_cap_and_old_jobs(self):
+        e = self.e
+        search = os.path.join(e.cache, "search")
+        os.makedirs(search)
+        for i in range(1005):
+            p = os.path.join(search, f"{i:04}.json")
+            open(p, "w").write("{}")
+            os.utime(p, (time.time() - 5000 + i,) * 2)
+        e.js("prune", 100)
+        left = sorted(os.listdir(search))
+        self.assertEqual(len(left), 1000)
+        self.assertEqual(left[0], "0005.json")  # oldest removed
+        # a job queued minutes ago is dropped
+        jobs = os.path.join(e.cache, "jobs")
+        os.makedirs(jobs)
+        png = os.path.join(e.cache, "png", "c000000", "iconify", "mdi", "home.png")
+        job = os.path.join(jobs, "1-old.json")
+        json.dump([{"url": "", "svg": os.path.join(e.cache, "svg/iconify/mdi/home.svg"), "png": png, "color": "#000000", "tile": None,
+                    "iconify": {"prefix": "mdi", "name": "home"}}], open(job, "w"))
+        os.utime(job, (time.time() - 600,) * 2)
+        e.run("worker")
+        self.assertFalse(os.path.exists(png))
+        self.assertFalse(os.path.exists(job))
+        # prune runs at most hourly
+        big = os.path.join(e.cache, "png", "x", "big.png")
+        os.makedirs(os.path.dirname(big))
+        open(big, "wb").write(b"\0" * 2_000_000)
+        os.utime(big, (time.time() - 9999,) * 2)
+        e.run("worker", cache_limit_mb="1")
+        self.assertTrue(os.path.exists(big))  # the worker above already pruned this hour
+        os.utime(os.path.join(e.cache, "pruned"), (time.time() - 4000,) * 2)
+        e.run("worker", cache_limit_mb="1")
+        self.assertFalse(os.path.exists(big))
 
 
 class PruneTests(unittest.TestCase):
@@ -793,7 +901,8 @@ class LogoFilterTests(unittest.TestCase):
         MOCK.mode["svgl"] = "garbage"
         d = self.e.sf("logo", "github")
         self.assertIn("github", titles(d))  # Simple Icons still answers
-        self.assertEqual(d["items"][-1]["title"], "Unexpected response from the server: showing cached results")
+        self.assertEqual(d["items"][-1]["title"], "Couldn’t load svgl")  # audit 1: no "cached results" claim without a cache
+        self.assertEqual(d["items"][-1]["subtitle"], "Unexpected response from the server")
 
 
 class FontFilterTests(unittest.TestCase):

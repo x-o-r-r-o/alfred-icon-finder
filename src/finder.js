@@ -26,6 +26,7 @@ const UA = "alfred-icon-finder/1.0 (+https://github.com/x-o-r-r-o/alfred-icon-fi
 const DAY = 86400;
 const TTL = { search: DAY, collections: 7 * DAY, svgl: DAY, fonts: 7 * DAY, fail: 3600, stale: 30 * DAY };
 const MAX_RERUNS = 30;
+const MAX_SEARCHES = 1000;
 const RERUN_DELAY = 0.4;
 
 function cfg() {
@@ -308,6 +309,14 @@ function stripProlog(svg) {
     .trim();
 }
 
+// A complete SVG document: a root element that is closed (catches truncated downloads and HTML error pages)
+function isSvg(text) {
+  if (typeof text !== "string") return false;
+  const s = stripProlog(text);
+  const root = svgRoot(s);
+  return !!root && root.start === 0 && (root.selfClosing || /<\/svg\s*>\s*$/i.test(s));
+}
+
 // The root <svg …> start tag: { start, end, attrs, selfClosing }
 function svgRoot(svg) {
   const m = /<svg[\s>\/]/i.exec(svg);
@@ -510,7 +519,6 @@ function componentName(name) {
 function svgToJsx(svg, name) {
   const s = stripProlog(svg);
   let out = "", i = 0, skip = 0, rootDone = false;
-  const rawText = []; // stack: inside <style>/<script>
   while (i < s.length) {
     if (s.startsWith("<![CDATA[", i)) {
       const end = s.indexOf("]]>", i);
@@ -531,8 +539,7 @@ function svgToJsx(svg, name) {
           skip--;
           continue;
         }
-        if (/^(style|script)$/i.test(tag)) rawText.pop();
-        out += `</${tag}>`;
+        out += `</${tag.replace(/^svg:/i, "")}>`;
         continue;
       }
       const selfClosing = /\/\s*$/.test(raw);
@@ -565,7 +572,6 @@ function svgToJsx(svg, name) {
           out += "{`" + css.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$\{/g, "\\${") + "`}";
           i = close < 0 ? s.length : close;
         }
-        rawText.push(tag);
       }
       continue;
     }
@@ -591,9 +597,15 @@ function svgDataUri(svg) {
 // ---------- rasterising ----------
 
 // Render SVG text to a square PNG of `size` px. tile: null, "light" or "dark" (a rounded background).
+// fit: the PNG takes the SVG's proportions instead (longest side = size, no padding), for saved PNGs.
 function rasterize(svgText, outPath, size, opts = {}) {
-  const pad = opts.tile ? size * 0.14 : opts.pad === undefined ? size * 0.04 : opts.pad;
+  const pad = opts.fit ? 0 : opts.tile ? size * 0.14 : opts.pad === undefined ? size * 0.04 : opts.pad;
   const r = renderableSvg(svgText, size - 2 * pad, size - 2 * pad, opts.color);
+  let W = size, H = size;
+  if (opts.fit) {
+    W = Math.max(1, Math.round(r.w));
+    H = Math.max(1, Math.round(r.h));
+  }
   let img = null, quicklook = false;
   if (env("IF_FORCE_QLMANAGE", "") !== "1") {
     img = $.NSImage.alloc.initWithData($(r.svg).dataUsingEncoding($.NSUTF8StringEncoding));
@@ -605,7 +617,7 @@ function rasterize(svgText, outPath, size, opts = {}) {
   }
   if (!img) return false;
   const rep = $.NSBitmapImageRep.alloc.initWithBitmapDataPlanesPixelsWidePixelsHighBitsPerSampleSamplesPerPixelHasAlphaIsPlanarColorSpaceNameBytesPerRowBitsPerPixel(
-    null, size, size, 8, 4, true, false, $.NSDeviceRGBColorSpace, 0, 0);
+    null, W, H, 8, 4, true, false, $.NSDeviceRGBColorSpace, 0, 0);
   if (rep.isNil()) return false;
   $.NSGraphicsContext.saveGraphicsState;
   $.NSGraphicsContext.setCurrentContext($.NSGraphicsContext.graphicsContextWithBitmapImageRep(rep));
@@ -617,14 +629,14 @@ function rasterize(svgText, outPath, size, opts = {}) {
   }
   let w = r.w, h = r.h;
   if (quicklook) {
-    // the thumbnail is aspect-fitted into size × size already: keep its proportions
-    const iw = img.size.width, ih = img.size.height, box = size - 2 * pad;
-    const k = Math.min(box / iw, box / ih);
+    // the thumbnail is aspect-fitted already: keep its proportions
+    const iw = img.size.width, ih = img.size.height;
+    const k = Math.min((W - 2 * pad) / iw, (H - 2 * pad) / ih);
     w = iw * k;
     h = ih * k;
   }
   $.NSGraphicsContext.currentContext.imageInterpolation = $.NSImageInterpolationHigh;
-  img.drawInRectFromRectOperationFraction($.NSMakeRect((size - w) / 2, (size - h) / 2, w, h), $.NSZeroRect, $.NSCompositingOperationSourceOver, 1);
+  img.drawInRectFromRectOperationFraction($.NSMakeRect((W - w) / 2, (H - h) / 2, w, h), $.NSZeroRect, $.NSCompositingOperationSourceOver, 1);
   $.NSGraphicsContext.restoreGraphicsState;
   const png = rep.representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $({}));
   if (png.isNil()) return false;
@@ -683,8 +695,8 @@ function previewOrQueue(ref, color, tile, queue) {
   if (exists(png)) return png;
   const failAge = fileAge(`${png}.fail`);
   if (failAge !== null && failAge < TTL.fail) return "failed";
-  if (rateLimited() && !exists(ref.svg)) return "limited";
-  queue.push({ url: ref.url, svg: ref.svg, png, color: tile ? null : color, tile: tile || null,
+  if (!exists(ref.svg) && backoff(ref.kind)) return "limited";
+  queue.push({ url: ref.url, svg: ref.svg, png, color: tile ? (tile === "dark" ? "#ffffff" : "#000000") : color, tile: tile || null,
     iconify: ref.kind === "iconify" ? { prefix: ref.prefix, name: ref.name } : null });
   return null;
 }
@@ -706,31 +718,43 @@ function worker() {
     const files = listFiles(`${d}/jobs`).filter((f) => f.endsWith(".json")).sort().reverse();
     if (!files.length) break;
     const f = `${d}/jobs/${files[0]}`;
-    const items = readJSON(f) || [];
+    const age = fileAge(f);
+    const items = age !== null && age < 120 ? readJSON(f) || [] : []; // a query typed minutes ago no longer matters
     remove(f);
     // older jobs are superseded by newer queries, but keep what they need if still missing
     processJob(items.filter((it) => it && typeof it.png === "string" && it.png.startsWith(d + "/png/")));
   }
-  prune();
+  const pruned = fileAge(`${d}/pruned`);
+  if (pruned === null || pruned > 3600) {
+    touch(`${d}/pruned`);
+    prune();
+  }
   remove(lock);
 }
 
-function rateLimited() {
-  const age = fileAge(`${cacheDir()}/ratelimited`);
-  return age !== null && age < 180;
+// Back off from a service after HTTP 429 (3 minutes) or a network failure (1 minute), instead of marking
+// previews broken or rerunning the Script Filter against a service that can't answer.
+function backoff(service) {
+  const d = cacheDir();
+  const limited = fileAge(`${d}/ratelimited-${service}`);
+  const offline = fileAge(`${d}/offline-${service}`);
+  return (limited !== null && limited < 180) || (offline !== null && offline < 60);
+}
+function serviceOf(item) {
+  return item.iconify ? "iconify" : "svgl";
 }
 
 function processJob(items) {
   const d = cacheDir();
   const seen = {};
   const missing = items.filter((it) => !exists(it.svg) && it.svg.startsWith(d + "/svg/") && (seen[it.svg] ? false : (seen[it.svg] = true)));
-  if (missing.length && !rateLimited()) fetchSvgs(missing);
-  const limited = rateLimited();
+  const fetchable = missing.filter((it) => !backoff(serviceOf(it)));
+  if (fetchable.length) fetchSvgs(fetchable);
   for (const it of items) {
     if (exists(it.png)) continue;
     const svg = readText(it.svg);
-    if (svg === null && limited) continue; // try again later instead of marking it broken
-    const ok = svg !== null && svgRoot(svg) && rasterize(svg, it.png, 128, { color: it.color, tile: it.tile });
+    if (svg === null && backoff(serviceOf(it))) continue; // try again later instead of marking it broken
+    const ok = isSvg(svg) && rasterize(svg, it.png, 128, { color: it.color, tile: it.tile });
     if (!ok) touch(`${it.png}.fail`);
   }
 }
@@ -753,7 +777,9 @@ function fetchSvgs(items) {
   }
   const status = parallelDownload(transfers);
   transfers.forEach((t, i) => {
-    if (status[i] === 429) touch(`${d}/ratelimited`);
+    const service = t.prefix ? "iconify" : "svgl";
+    if (status[i] === 429) touch(`${d}/ratelimited-${service}`);
+    if (status[i] === 0) touch(`${d}/offline-${service}`);
     if (!t.prefix) return;
     const data = status[i] === 200 ? readJSON(t.out) : null;
     remove(t.out);
@@ -797,7 +823,7 @@ function parallelDownload(list) {
     const part = x.out + ".part";
     if (status[i] !== 200) return remove(part);
     const t = readText(part);
-    if (t !== null && (!x.svg || /<svg[\s>]/i.test(t))) move(part, x.out);
+    if (t !== null && (!x.svg || isSvg(t))) move(part, x.out);
     else {
       status[i] = -1;
       remove(part);
@@ -884,14 +910,14 @@ function prune(limitMB) {
       total -= f.size;
     }
   }
-  // old search results and leftovers
+  // old search results (at most MAX_SEARCHES, none older than a month) and leftovers
   for (const dir of ["search", "tmp", "jobs"]) {
-    for (const rel of listFiles(`${d}/${dir}`)) {
-      const p = `${d}/${dir}/${rel}`;
-      const age = fileAge(p);
-      const max = dir === "search" ? TTL.stale : 3600;
-      if (age !== null && age > max) remove(p);
-    }
+    const list = listFiles(`${d}/${dir}`).map((rel) => ({ p: `${d}/${dir}/${rel}`, age: fileAge(`${d}/${dir}/${rel}`) }))
+      .filter((f) => f.age !== null).sort((a, b) => a.age - b.age);
+    const max = dir === "search" ? TTL.stale : 3600;
+    list.forEach((f, i) => {
+      if (f.age > max || (dir === "search" && i >= MAX_SEARCHES)) remove(f.p);
+    });
   }
   return total;
 }
@@ -932,7 +958,6 @@ function svgRow(o, c) {
     title: o.title,
     subtitle: o.subtitle,
     arg: o.id,
-    match: o.match,
     icon,
     quicklookurl: ql,
     text: { copy: o.name, largetype: o.name },
@@ -1007,7 +1032,8 @@ function setSuggestions(q, c, query) {
     info(`${v.name}  @${k}`, `${v.total.toLocaleString("en-US")} icons${v.category ? " · " + v.category : ""}${v.license ? " · " + v.license : ""} · ↩ Search this set`, "set", {
       valid: false, autocomplete: `${before}@${k} `,
     }));
-  if (!items.length) items.push(info("No matching icon set", `Nothing matches “${p}”. Type @ to list every set`, "info"));
+  if (!Object.keys(coll).length) items.push(info("Couldn’t load the list of icon sets", "Check the internet connection, or type the set’s prefix, like @mdi", "offline"));
+  else if (!items.length) items.push(info("No matching icon set", `Nothing matches “${p}”. Type @ to list every set`, "info"));
   const all = info("All icon sets  @all", "Search every set, ignoring the preferred sets", "set", { autocomplete: `${before}@all ` });
   if (!p || "all".startsWith(p)) items.push(all);
   return items;
@@ -1050,7 +1076,10 @@ function iconItems(query) {
   const color = previewColor(c);
   const queue = [];
   // "@luc": still typing a set name (an exact set name followed by more text searches)
-  if (q.partial !== null && (q.partial === "" || !q.text || !collections(true)[q.partial])) return { items: setSuggestions(q, c, query) };
+  if (q.partial !== null) {
+    const coll = q.partial === "" || !q.text ? null : collections(true);
+    if (!coll || (Object.keys(coll).length && !coll[q.partial])) return { items: setSuggestions(q, c, query) };
+  }
   if (!q.text) {
     const scope = q.sets.length ? q.sets.map((s) => "@" + s).join(" ") : q.all || !c.setsOnly || !c.sets.length ? "every set" : c.sets.map((s) => "@" + s).join(" ");
     return {
@@ -1070,7 +1099,7 @@ function iconItems(query) {
   const params = [`query=${encodeURIComponent(q.text)}`, `limit=${c.limit}`];
   if (prefixes.length) params.push(`prefixes=${prefixes.map(encodeURIComponent).join(",")}`);
   const url = `${ICONIFY}/search?${params.join("&")}`;
-  const r = cachedJSON(url, `${cacheDir()}/search/${hash(url)}.json`, TTL.search, 8, validateSearch);
+  const r = cachedJSON(url, `${cacheDir()}/search/${hash(url.slice(ICONIFY.length))}.json`, TTL.search, 8, validateSearch);
   const items = [];
   let names;
   if (r.data) {
@@ -1203,7 +1232,7 @@ function logoItems(query) {
   let si = { data: null };
   if (scored.length < 5) {
     const url = `${ICONIFY}/search?query=${encodeURIComponent(words.join(" "))}&limit=32&prefixes=simple-icons,logos`;
-    si = cachedJSON(url, `${cacheDir()}/search/${hash(url)}.json`, TTL.search, 8, validateSearch);
+    si = cachedJSON(url, `${cacheDir()}/search/${hash(url.slice(ICONIFY.length))}.json`, TTL.search, 8, validateSearch);
     const coll = Object.assign(collections(false), (si.data && si.data.collections) || {});
     for (const full of (si.data ? si.data.icons : []).slice(0, 20)) {
       const [prefix, name] = full.split(":");
@@ -1212,10 +1241,17 @@ function logoItems(query) {
     }
   }
   const error = r.error || si.error;
+  const offline = error === "No internet connection";
   if (!items.length) {
-    if (error) items.push(info(error === "No internet connection" ? "You’re offline" : "Couldn’t load logos", error === "No internet connection" ? "Connect to the internet to search logos" : error, error === "No internet connection" ? "offline" : "error"));
+    if (error) items.push(info(offline ? "You’re offline" : "Couldn’t load logos", offline ? "Connect to the internet to search logos" : error, offline ? "offline" : "error"));
     else items.push(info("No logos found", `Nothing matches “${query.trim()}” in svgl or Simple Icons`, "info"));
-  } else if (error && (r.stale || si.stale || !r.data || !si.data)) items.push(offlineNotice(error, "Logos"));
+  } else {
+    for (const [res, name] of [[r, "svgl"], [si, "Simple Icons"]]) {
+      if (!res.error) continue;
+      if (res.stale) items.push(offlineNotice(res.error, `${name} results`));
+      else items.push(info(`Couldn’t load ${name}`, res.error, res.error === "No internet connection" ? "offline" : "error"));
+    }
+  }
   enqueue(queue);
   return { items, extra: rerunFields(query, queue.length) };
 }
@@ -1267,6 +1303,7 @@ function css2Family(f) {
   const it = f.w.filter((k) => k.endsWith("i")).map((k) => Number(k.slice(0, -1))).sort((a, b) => a - b);
   const axis = f.a.find((a) => a[0] === "wght");
   const range = axis && axis[2] > axis[1] ? `${axis[1]}..${axis[2]}` : null;
+  if (!up.length && !it.length && !range) return fam;
   if (!it.length) {
     if (range) return `${fam}:wght@${range}`;
     if (up.length === 1 && up[0] === 400) return fam;
@@ -1380,7 +1417,7 @@ function notify(message) {
 
 function loadSvg(ref) {
   let svg = readText(ref.svg);
-  if (svg === null || !svgRoot(svg)) {
+  if (!isSvg(svg)) {
     let status;
     if (ref.kind === "iconify") {
       const r = getJSON(ref.url, 10);
@@ -1391,7 +1428,7 @@ function loadSvg(ref) {
     } else status = download(ref.url, ref.svg, 10);
     svg = status === 200 ? readText(ref.svg) : null;
     if (svg === null) return { error: httpError(status) };
-    if (!svgRoot(svg)) {
+    if (!isSvg(svg)) {
       remove(ref.svg);
       return { error: "The download is not an SVG" };
     }
@@ -1427,7 +1464,7 @@ function action(mode, id) {
       mkdirp(dir);
       const base = ref.full.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "icon";
       const out = uniquePath(dir, `${base}-${c.pngSize}`, "png");
-      if (!rasterize(r.svg, out, c.pngSize, { color: c.pngColor, pad: 0 })) {
+      if (!rasterize(r.svg, out, c.pngSize, { color: c.pngColor, fit: true })) {
         notify(`Couldn’t render ${ref.full}`);
         return "";
       }
@@ -1440,7 +1477,7 @@ function action(mode, id) {
 
 // ---------- test hooks (pure functions, only with IF_TEST=1) ----------
 
-const TESTABLE = { svgToJsx, normalizeHexAlpha, svgDataUri, outputSvg, renderableSvg, colorize, svgBox, parseIconQuery, parseFontQuery, css2Family,
+const TESTABLE = { svgToJsx, normalizeHexAlpha, isSvg, svgDataUri, outputSvg, renderableSvg, colorize, svgBox, parseIconQuery, parseFontQuery, css2Family,
   nextFontSnippet, slimFonts, iconSvg, validateSvgl, validateSearch, componentName, styleObject, matchScore, resolveId, hash, prune,
   rasterize: (svg, out, size, opts) => rasterize(svg, out, size, opts) };
 
