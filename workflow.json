@@ -153,6 +153,45 @@
       }
     },
     {
+      "type": "textfield",
+      "variable": "copy_color",
+      "label": "Colour of copied icons",
+      "description": "Hex colour that replaces currentColor in copied SVGs, JSX and data URIs (a data URI in CSS can’t inherit the text colour). Leave empty to keep currentColor.",
+      "config": {
+        "default": "",
+        "placeholder": "#1f2937",
+        "required": false,
+        "trim": true
+      }
+    },
+    {
+      "type": "popupbutton",
+      "variable": "name_format",
+      "label": "Copy names as (⌃↩)",
+      "description": "",
+      "config": {
+        "default": "iconify",
+        "pairs": [
+          [
+            "mdi:home (Iconify)",
+            "iconify"
+          ],
+          [
+            "i-mdi-home (UnoCSS, Tailwind CSS)",
+            "class"
+          ],
+          [
+            "<Icon icon=\"mdi:home\" /> (Iconify components)",
+            "component"
+          ],
+          [
+            "MdiHome (component name)",
+            "pascal"
+          ]
+        ]
+      }
+    },
+    {
       "type": "popupbutton",
       "variable": "png_size",
       "label": "PNG size (⇧↩)",
@@ -256,7 +295,8 @@
       "title": "Search Logos",
       "subtext": "SVG brand logos from svgl and Simple Icons",
       "running": "Searching logos…",
-      "script": "osascript -l JavaScript ./finder.js logo \"$1\""
+      "script": "osascript -l JavaScript ./finder.js logo \"$1\"",
+      "queuedelaymode": 1
     },
     {
       "id": "sf_font",

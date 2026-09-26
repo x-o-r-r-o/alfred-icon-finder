@@ -14,10 +14,12 @@ Add `@` and a set name to search one set, like `icon @lucide arrow` or `icon set
 
 Alternatively, search icons for the selected text via the Universal Action.
 
+![Searching icons with the Universal Action](images/icon-action.png)
+
 * <kbd>↩</kbd> Copy the SVG.
 * <kbd>⌘</kbd><kbd>↩</kbd> Paste the SVG into the frontmost app.
 * <kbd>⌥</kbd><kbd>↩</kbd> Copy as a React (JSX) component.
-* <kbd>⌃</kbd><kbd>↩</kbd> Copy the icon’s name, like `mdi:home`.
+* <kbd>⌃</kbd><kbd>↩</kbd> Copy the icon’s name, like `mdi:home`, `i-mdi-home` or `<Icon icon="mdi:home" />` (set the format in the Workflow’s Configuration).
 * <kbd>⇧</kbd><kbd>↩</kbd> Save a PNG to Downloads and reveal it.
 * <kbd>fn</kbd><kbd>↩</kbd> Copy a data URI for CSS.
 * <kbd>⌘</kbd><kbd>⌥</kbd><kbd>↩</kbd> Open the icon on Iconify.
@@ -25,7 +27,7 @@ Alternatively, search icons for the selected text via the Universal Action.
 
 ### Logos
 
-Search SVG brand logos from [svgl](https://svgl.app) via the `logo` keyword, with light and dark variants and wordmarks. When svgl has few matches, logos from Simple Icons and SVG Logos follow. The keys are the same as for icons.
+Search [svgl](https://svgl.app)’s SVG brand logos, with light and dark variants and wordmarks, via the `logo` keyword. When svgl has few matches, logos from Simple Icons and SVG Logos follow. The keys are the same as for icons.
 
 ![Searching logos](images/logo.png)
 
@@ -42,7 +44,7 @@ Search Google Fonts via the `font` keyword. Results show the category, weights, 
 * <kbd>⇧</kbd><kbd>↩</kbd> Copy the Next.js `next/font` import.
 * <kbd>fn</kbd><kbd>↩</kbd> Copy the stylesheet URL.
 
-Results are cached, so everything you searched before still works offline. Set the preview colour, the size of copied SVGs, the PNG size, colour and folder, and the preview cache size in the Workflow’s Configuration. Every keyword can be changed there too.
+Results are cached, so everything you searched before still works offline. Set the preview colour, the size and colour of copied SVGs (a colour replaces `currentColor`, which a data URI in CSS can’t inherit), the PNG size, colour and folder, and the preview cache size in the Workflow’s Configuration. Every keyword can be changed there too.
 
 ## Development
 

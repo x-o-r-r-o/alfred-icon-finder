@@ -30,7 +30,9 @@ class Mock:
     def __init__(self):
         self.hits, self.queries, self.mode = {}, [], {}
         handler = self.handler()
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        # a deep accept queue: curl --parallel-immediate opens 8 connections at once
+        server = type("Server", (ThreadingHTTPServer,), {"request_queue_size": 128})
+        self.server = server(("127.0.0.1", 0), handler)
         self.base = f"http://127.0.0.1:{self.server.server_port}"
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.icons = {}
@@ -94,6 +96,11 @@ class Mock:
                         return self.send(200, "<html>oops</html>", "text/html")
                     if m.group(1).startswith("truncated"):
                         return self.send(200, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0', "image/svg+xml")
+                    if m.group(1).startswith("heavy"):  # takes CoreSVG minutes to render
+                        return self.send(200, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><filter id="b"><feGaussianBlur stdDeviation="3"/></filter>'
+                                         + '<circle cx="5" cy="5" r="4" filter="url(#b)"/>' * 5000 + "</svg>", "image/svg+xml")
+                    if m.group(1).startswith("hostile"):
+                        return self.send(200, HOSTILE.replace("BASE", mock.base), "image/svg+xml")
                     if m.group(1).startswith("zzcurrent"):
                         return self.send(200, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="currentColor"/></svg>', "image/svg+xml")
                     return self.send(200, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="#e11"/></svg>', "image/svg+xml")
@@ -148,6 +155,15 @@ class Mock:
         return H
 
 
+HOSTILE = ('<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY ext SYSTEM "BASE/x/entity">]>'
+           '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 10 10" onload="fetch(\'BASE/x/onload\')">'
+           '<script>fetch("BASE/x/script")</script><style>@import url("BASE/x/import.css"); .a{fill:url(BASE/x/fill.svg#g)}</style>'
+           '<image href="BASE/x/image.png" width="10" height="10"/><use xlink:href="BASE/x/use.svg#a"/>'
+           '<a href="javascript:alert(1)"><rect class="a" width="5" height="5" style="fill:url(&quot;#g&quot;)"/></a>'
+           '<filter id="f"><feImage href="BASE/x/feimage.png"/></filter>'
+           '<foreignObject width="10" height="10"><div xmlns="http://www.w3.org/1999/xhtml"><img src="BASE/x/fo.png"/></div></foreignObject>'
+           '<text>&ext;</text></svg>')
+
 MOCK = Mock()
 CLOSED = "http://127.0.0.1:9"  # nothing listens: behaves like being offline
 
@@ -163,7 +179,7 @@ class Env:
         for k in list(e):
             if k.startswith(("IF_", "if_", "icon_", "png_", "svg_", "preview_", "cache_limit")):
                 del e[k]
-        e.update(alfred_workflow_cache=self.cache, IF_TEST="1", IF_SYNC="1", alfred_theme_background=LIGHT,
+        e.update(alfred_workflow_cache=self.cache, IF_TEST="1", IF_SYNC="1", IF_UNTHROTTLED="1", alfred_theme_background=LIGHT,
                  IF_ICONIFY_API=MOCK.base + "/iconify", IF_SVGL_API=MOCK.base + "/svgl", IF_FONTS_META=MOCK.base + "/fonts",
                  IF_PNG_DIR=os.path.join(self.cache, "out"))
         e.update({k: str(v) for k, v in extra.items()})
@@ -411,6 +427,17 @@ class JsxCompileTests(unittest.TestCase):
         self.assertEqual("".join(text["children"]), "a {b} < c")
         self.assertEqual(path["props"]["title"], 'say "hi"')
 
+    def test_entities_in_expressions(self):
+        # audit 4: &quot; / &amp; inside style="" and single-quoted values reached the JS object undecoded
+        svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><path style="font-family:&quot;A &amp; B&quot;" '
+               'title=\'say "hi" &amp; bye\' data-Test="1" aria-Label="x" d="M0"/><text>&amp; &lt;</text></svg>')
+        tree = self.render(E.js("outputSvg", svg, "keep") and E.js("svgToJsx", E.js("outputSvg", svg, "keep"), "x"))
+        path = tree["children"][0]
+        self.assertEqual(path["props"]["style"], {"fontFamily": '"A & B"'})
+        self.assertEqual(path["props"]["title"], 'say "hi" & bye')
+        self.assertEqual(path["props"]["data-test"], "1")
+        self.assertEqual("".join(tree["children"][1]["children"]), "& <")
+
     def test_fixture_logos_compile(self):
         for f in sorted(os.listdir(os.path.join(FIX, "svg"))):
             tree = self.render(E.js("svgToJsx", fixture(f"svg/{f}", True), f))
@@ -511,7 +538,7 @@ class QueryTests(unittest.TestCase):
             self.assertIsNone(E.js("resolveId", bad), bad)
         s = E.js("resolveId", "svgl:https://svgl.app/library/github_light.svg")
         self.assertRegex(s["svg"], r"/svg/svgl/github_light-[0-9a-f]{6}\.svg$")
-        odd = E.js("resolveId", "svgl:https://x.test/a/..%2F..%2Fevil.svg")
+        odd = E.js("resolveId", "svgl:https://svgl.app/library/..%2F..%2Fevil.svg")
         self.assertRegex(odd["svg"], r"/svg/svgl/[0-9a-f]{16}\.svg$")
 
 
@@ -574,8 +601,9 @@ class FontParsingTests(unittest.TestCase):
         self.assertEqual(set(gh["route"]), {"light", "dark"})
         self.assertEqual(set(gh["wordmark"]), {"light", "dark"})
         self.assertTrue(all(isinstance(x["category"], list) for x in d))
-        junk = E.js("validateSvgl", [{"title": "A", "route": "javascript:x"}, {"title": "B", "route": "https://x/b.svg", "category": "Y"}])
-        self.assertEqual([x["title"] for x in junk], ["B"])
+        junk = E.js("validateSvgl", [{"title": "A", "route": "javascript:x"}, {"title": "B", "route": "https://svgl.app/library/b.svg", "category": "Y"},
+                                     {"title": "C", "route": "https://evil.test/c.svg"}, {"title": "D", "route": {"light": "https://svgl.app.evil.test/d.svg"}}])
+        self.assertEqual([x["title"] for x in junk], ["B"])  # audit 4: files only come from svgl
 
     def test_validate_search(self):
         d = E.js("validateSearch", json.loads(fixture("iconify_search_home.json")))
@@ -907,7 +935,7 @@ class Audit2Tests(unittest.TestCase):
         self.assertEqual(titles(e.sf("font", "lora"))[0], "Lora")
 
     def test_malformed_svgl_url(self):
-        r = E.js("resolveId", "svgl:https://x.test/a%E0%A4%A.svg")
+        r = E.js("resolveId", "svgl:https://svgl.app/library/a%E0%A4%A.svg")
         self.assertRegex(r["svg"], r"/svg/svgl/[0-9a-f]{16}\.svg$")
 
     def test_font_category_word_also_matches_names(self):
@@ -946,6 +974,195 @@ class Audit3Tests(unittest.TestCase):
         it = self.e.sf("font", "fixed")["items"][0]
         self.assertEqual(it["subtitle"], "Serif · 1 weight · #1 most popular")
         self.assertIn("family=Fixed&", it["mods"]["fn"]["arg"])
+
+
+def workers():
+    ps = subprocess.run(["ps", "-ax", "-o", "command"], capture_output=True, text=True).stdout
+    return sum(1 for l in ps.splitlines() if l.startswith("/usr/bin/osascript") and l.endswith("finder.js worker"))
+
+
+class Audit4Tests(unittest.TestCase):
+    def setUp(self):
+        MOCK.reset()
+        self.e = Env()
+
+    def wait_idle(self, e, timeout=40):
+        deadline = time.time() + timeout
+        while time.time() < deadline and (os.path.exists(os.path.join(e.cache, "worker.lock")) or e.files("jobs")):
+            time.sleep(0.2)
+
+    def test_prototype_keys(self):
+        # audit 4: "constructor" hit Object.prototype: a crash for icons, a garbage subtitle for fonts
+        d = self.e.sf("icon", "constructor:home")
+        self.assertNotIn("Something went wrong", titles(d))
+        d = self.e.sf("font", "constructor")
+        self.assertEqual(titles(d), ["No fonts found"])
+        self.assertNotIn("function", d["items"][0]["subtitle"])
+        self.assertEqual(titles(self.e.sf("font", "toString:"))[0], "No fonts found")
+        self.assertEqual(titles(self.e.sf("icon", "@constructor"))[0], "No matching icon set")
+
+    def test_keystroke_storm_one_worker(self):
+        # audit 4: the worker lock was a file checked then touched, so parallel keystrokes started several workers;
+        # every rerun also wrote another job file
+        e = self.e
+        qs = ["home", "mdi:account", "mdi:bell", "lucide:house", "tabler:arrow-up", "mdi:a1", "mdi:a2", "mdi:a3", "mdi:a4", "mdi:a5"]
+        procs = [subprocess.Popen(["osascript", "-l", "JavaScript", "./finder.js", "icon", q], cwd=SRC, env=e.vars(IF_SYNC=""),
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE) for q in qs]
+        peak = 0
+        while any(p.poll() is None for p in procs):
+            peak = max(peak, workers())
+        for p in procs:
+            p.communicate()
+        deadline = time.time() + 40
+        while time.time() < deadline and (os.path.exists(os.path.join(e.cache, "worker.lock")) or e.files("jobs")):
+            peak = max(peak, workers())
+            time.sleep(0.05)
+        self.assertLessEqual(peak, 1)
+        self.assertEqual(e.files("jobs"), [])
+        self.assertEqual(len(e.files("png", ".png")), 64 + 9)
+        self.assertEqual(MOCK.count("/iconify/collections"), 1)  # the set list is fetched by one process only
+        # an identical rerun reuses its job file
+        shutil.rmtree(os.path.join(e.cache, "png"))
+        os.makedirs(os.path.join(e.cache, "worker.lock"))  # a worker is busy: jobs wait
+        e.sf("icon", "home", IF_SYNC="")
+        e.sf("icon", "home", IF_SYNC="", if_rerun_query="home", if_reruns="1")
+        self.assertEqual(len(e.files("jobs")), 1)
+
+    def test_hung_render_is_killed_and_marked_broken(self):
+        # audit 4: a render that never finishes kept the worker (and its lock) forever and was retried every keystroke
+        e = self.e
+        ident = f"svgl:{MOCK.base}/svgl/library/heavy.svg"
+        svgl = [{"title": "Heavy", "category": ["Test"], "route": {"default": f"{MOCK.base}/svgl/library/heavy.svg"}, "wordmark": None}]
+        json.dump(svgl, open(os.path.join(e.cache, "svgl.json"), "w"))
+        e.sf("logo", "heavy", IF_SYNC="", IF_HARD_TIMEOUT="3")
+        time.sleep(6)
+        self.assertEqual(workers(), 0)
+        self.assertFalse(os.path.exists(os.path.join(e.cache, "worker.lock")))  # released by the watchdog
+        marks = e.files("png", ".rendering")
+        self.assertEqual(len(marks), 1)
+        d = e.sf("logo", "heavy", IF_SYNC="")
+        self.assertEqual(d["items"][0]["icon"]["path"], "icons/logo.png")  # pending: may still be rendering
+        os.utime(os.path.join(e.cache, "png", marks[0]), (time.time() - 60,) * 2)
+        d = e.sf("logo", "heavy", IF_SYNC="")
+        self.assertEqual(d["items"][0]["icon"]["path"], "icons/broken.png")
+        self.assertNotIn("rerun", d)
+        self.assertTrue(ident)
+
+    def test_request_throttle_across_processes(self):
+        e = self.e
+        for i in range(3):
+            self.assertTrue(e.js("allowRequest", "svgl", IF_UNTHROTTLED=""))
+        self.assertFalse(e.js("allowRequest", "svgl", IF_UNTHROTTLED=""))
+        self.assertTrue(e.js("allowRequest", "iconify", IF_UNTHROTTLED=""))
+        for f in os.listdir(os.path.join(e.cache, "requests", "svgl")):
+            p = os.path.join(e.cache, "requests", "svgl", f)
+            os.rename(p, os.path.join(e.cache, "requests", "svgl", f"{int(f.split('-')[0]) - 11000}-1"))
+        self.assertTrue(e.js("allowRequest", "svgl", IF_UNTHROTTLED=""))  # the window moved on
+        # a keystroke storm: searches beyond the limit wait and rerun instead of hitting Iconify
+        for i in range(20):
+            e.sf("icon", f"demo{i}", icon_sets="mdi", icon_sets_only="1", IF_UNTHROTTLED="")
+        self.assertLessEqual(MOCK.count("/iconify/search"), 15)
+        d = e.sf("icon", "demo99", icon_sets="mdi", icon_sets_only="1", IF_UNTHROTTLED="")
+        self.assertEqual(titles(d), ["Searching…"])
+        self.assertEqual(d["rerun"], 1)
+
+    def test_single_fetch_for_parallel_cold_starts(self):
+        e = self.e
+        procs = [subprocess.Popen(["osascript", "-l", "JavaScript", "./finder.js", "font", q], cwd=SRC, env=e.vars(),
+                                  stdout=subprocess.PIPE) for q in ["i", "in", "int", "inte", "inter"]]
+        outs = [json.loads(p.communicate()[0]) for p in procs]
+        self.assertEqual(MOCK.count("/fonts"), 1)
+        self.assertEqual(outs[-1]["items"][0]["title"], "Inter")
+
+    def test_iconify_url_length(self):
+        # audit 4: 80 names per request made URLs of 2,000+ characters; Iconify asks for under 500
+        names = [f"face-with-a-rather-long-name-{i:03}" for i in range(200)]
+        chunks = E.js("iconChunks", "fluent-emoji", names)
+        self.assertEqual(sorted(sum(chunks, [])), sorted(names))
+        base = MOCK.base + "/iconify/fluent-emoji.json?icons="
+        self.assertTrue(all(len(base + ",".join(c)) <= 480 for c in chunks))
+        self.assertEqual(chunks[0], sorted(chunks[0]))
+
+    def test_blocked_403(self):
+        MOCK.mode["svgl"] = 403
+        d = self.e.sf("logo", "github")
+        self.assertIn("HTTP 403", d["items"][-1]["subtitle"])
+        self.assertTrue(os.path.exists(os.path.join(self.e.cache, "blocked-svgl")))
+        MOCK.reset()
+        self.e.sf("logo", "github")
+        self.assertEqual(MOCK.count("/svgl"), 0)  # backing off for a minute
+
+    def test_hostile_svg(self):
+        ident = f"svgl:{MOCK.base}/svgl/library/hostile.svg"
+        MOCK.reset()
+        svg = self.e.action("svg", ident).stdout
+        for bad in ["script", "onload", "javascript", "foreignObject", "@import", "/x/", "DOCTYPE", "ENTITY"]:
+            self.assertNotIn(bad, svg)
+        self.assertIn('<rect class="a"', svg)
+        jsx = self.e.action("jsx", ident).stdout
+        self.assertIn('style={{ fill: "url(\\"#g\\")" }}', jsx)  # &quot; decoded inside the JS object
+        cached = open(self.e.files and os.path.join(self.e.cache, "svg", "svgl", self.e.files("svg/svgl")[0])).read()
+        self.assertNotIn("script", cached)  # stored clean, so Quick Look shows the clean file too
+        # the renderers never fetch anything: NSImage (CoreSVG) and the Quick Look fallback
+        raw = HOSTILE.replace("BASE", MOCK.base)
+        for ql in ("", "1"):
+            MOCK.reset()
+            self.assertTrue(E.js("rasterize", raw, os.path.join(self.e.cache, f"h{ql}.png"), 64, {}, IF_FORCE_QLMANAGE=ql))
+            time.sleep(0.3)
+            self.assertEqual(MOCK.count("/x/"), 0, ql)
+        self.assertEqual(E.js("sanitizeSvg", '<svg><style>.b{fill:url( "#h")} .c{fill:url( http://x)}</style></svg>'),
+                         '<svg><style>.b{fill:url( "#h")} .c{fill:none}</style></svg>')
+
+    def test_svgl_ids_only_from_svgl(self):
+        self.assertIsNone(E.js("resolveId", "svgl:https://evil.test/x.svg"))
+        self.assertIsNone(E.js("resolveId", "svgl:https://svgl.app.evil.test/x.svg"))
+        self.assertIsNotNone(E.js("resolveId", "svgl:https://svgl.app/library/x.svg"))
+        out = self.e.action("svg", "svgl:https://evil.test/x.svg")
+        self.assertEqual(out.stdout, "")
+
+    def test_cache_dir_must_be_absolute(self):
+        for bad in ["", "relative/cache", "/"]:
+            out = self.e.run("icon", "", alfred_workflow_cache=bad)
+            self.assertEqual(out.returncode, 0)
+        self.assertFalse(os.path.exists(os.path.join(SRC, "relative")))
+
+    def test_prune_mixed_cache(self):
+        e = self.e
+        outside = tempfile.mkdtemp(prefix="icon-finder-outside-")
+        victim = os.path.join(outside, "keep.png")
+        open(victim, "wb").write(b"\0" * 900_000)
+        now = time.time()
+        def put(rel, size, age):
+            p = os.path.join(e.cache, rel)
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            open(p, "wb").write(b"\0" * size)
+            os.utime(p, (now - age,) * 2)
+        put("png/c000000/iconify/mdi/a.png", 300_000, 900)
+        put("svg/iconify/mdi/a.svg", 300_000, 800)
+        put("png/tile-dark/svgl/é-ü.png", 300_000, 700)
+        put("svg/svgl/b.svg", 300_000, 10)
+        put("png/c000000/iconify/mdi/x.png.fail", 0, 7200)
+        put("png/c000000/iconify/mdi/y.png.fail", 0, 60)
+        os.symlink(victim, os.path.join(e.cache, "png", "c000000", "link.png"))
+        os.symlink(outside, os.path.join(e.cache, "svg", "dirlink"))
+        total = e.js("prune", 1)  # 1.2 MB of files, limit 1 MB → down to 0.8 MB, oldest first
+        self.assertEqual(total, 600_000)
+        self.assertEqual(sorted(e.files("png") + e.files("svg")), sorted(["c000000/iconify/mdi/y.png.fail", "c000000/link.png", "tile-dark/svgl/é-ü.png", "svgl/b.svg"]))
+        self.assertTrue(os.path.exists(victim))  # nothing outside the cache, and symlinks are left alone
+        self.assertEqual(e.js("prune", 100), 600_000)  # under the limit: nothing deleted
+
+    def test_name_formats_and_copy_colour(self):
+        e = self.e
+        for fmt, want in [("iconify", "mdi:home"), ("class", "i-mdi-home"), ("component", '<Icon icon="mdi:home" />'), ("pascal", "MdiHome")]:
+            it = e.sf("icon", "mdi:home", name_format=fmt)["items"][0]
+            self.assertEqual(it["mods"]["ctrl"]["arg"], want)
+            self.assertEqual(it["text"]["copy"], want)
+        self.assertEqual(e.sf("logo", "github", name_format="class")["items"][0]["mods"]["ctrl"]["arg"], "github-light")
+        svg = e.action("svg", "iconify:mdi:home", copy_color="#1F2937").stdout
+        self.assertIn('fill="#1f2937"', svg)
+        self.assertNotIn("currentColor", svg)
+        self.assertIn("%231f2937", e.action("datauri", "iconify:mdi:home", copy_color="1f2937").stdout)
+        self.assertIn("currentColor", e.action("svg", "iconify:mdi:home", copy_color="nope").stdout)
 
 
 class PruneTests(unittest.TestCase):
@@ -1013,8 +1230,9 @@ class LogoFilterTests(unittest.TestCase):
         self.assertGreater(len(d["items"]), 5)
         self.assertEqual(MOCK.count("/svgl"), 1)
         self.assertLess(time.time() - os.path.getmtime(path), 60)
-        # offline with a cache: still works
-        d = self.e.sf("logo", "vercel", IF_SVGL_API=CLOSED)
+        # svgl down with a cache: still works (the cached file URLs point at the mock, so it stays the API base)
+        MOCK.mode["svgl"] = 500
+        d = self.e.sf("logo", "vercel")
         self.assertGreater(len(d["items"]), 5)
 
     def test_svgl_api_error(self):

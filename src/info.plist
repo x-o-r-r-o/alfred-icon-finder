@@ -344,7 +344,7 @@
 				<key>alfredfiltersresultsmatchmode</key>
 				<integer>0</integer>
 				<key>argumenttreatemptyqueryasnil</key>
-				<false/>
+				<true/>
 				<key>argumenttrimmode</key>
 				<integer>0</integer>
 				<key>argumenttype</key>
@@ -395,7 +395,7 @@
 				<key>alfredfiltersresultsmatchmode</key>
 				<integer>0</integer>
 				<key>argumenttreatemptyqueryasnil</key>
-				<false/>
+				<true/>
 				<key>argumenttrimmode</key>
 				<integer>0</integer>
 				<key>argumenttype</key>
@@ -409,7 +409,7 @@
 				<key>queuedelayimmediatelyinitially</key>
 				<true/>
 				<key>queuedelaymode</key>
-				<integer>0</integer>
+				<integer>1</integer>
 				<key>queuemode</key>
 				<integer>1</integer>
 				<key>runningsubtext</key>
@@ -446,7 +446,7 @@
 				<key>alfredfiltersresultsmatchmode</key>
 				<integer>0</integer>
 				<key>argumenttreatemptyqueryasnil</key>
-				<false/>
+				<true/>
 				<key>argumenttrimmode</key>
 				<integer>0</integer>
 				<key>argumenttype</key>
@@ -782,7 +782,7 @@ Alternatively, search icons for the selected text via the Universal Action.
 * &lt;kbd&gt;↩&lt;/kbd&gt; Copy the SVG.
 * &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Paste the SVG into the frontmost app.
 * &lt;kbd&gt;⌥&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy as a React (JSX) component.
-* &lt;kbd&gt;⌃&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the icon’s name, like `mdi:home`.
+* &lt;kbd&gt;⌃&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the icon’s name, like `mdi:home`, `i-mdi-home` or `&lt;Icon icon="mdi:home" /&gt;` (set the format in the Workflow’s Configuration).
 * &lt;kbd&gt;⇧&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Save a PNG to Downloads and reveal it.
 * &lt;kbd&gt;fn&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy a data URI for CSS.
 * &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;⌥&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Open the icon on Iconify.
@@ -790,7 +790,7 @@ Alternatively, search icons for the selected text via the Universal Action.
 
 ### Logos
 
-Search SVG brand logos from [svgl](https://svgl.app) via the `logo` keyword, with light and dark variants and wordmarks. When svgl has few matches, logos from Simple Icons and SVG Logos follow. The keys are the same as for icons.
+Search [svgl](https://svgl.app)’s SVG brand logos, with light and dark variants and wordmarks, via the `logo` keyword. When svgl has few matches, logos from Simple Icons and SVG Logos follow. The keys are the same as for icons.
 
 ### Fonts
 
@@ -803,7 +803,7 @@ Search Google Fonts via the `font` keyword. Results show the category, weights, 
 * &lt;kbd&gt;⇧&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the Next.js `next/font` import.
 * &lt;kbd&gt;fn&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the stylesheet URL.
 
-Results are cached, so everything you searched before still works offline. Set the preview colour, the size of copied SVGs, the PNG size, colour and folder, and the preview cache size in the Workflow’s Configuration. Every keyword can be changed there too.
+Results are cached, so everything you searched before still works offline. Set the preview colour, the size and colour of copied SVGs (a colour replaces `currentColor`, which a data URI in CSS can’t inherit), the PNG size, colour and folder, and the preview cache size in the Workflow’s Configuration. Every keyword can be changed there too.
 </string>
 	<key>uidata</key>
 	<dict>
@@ -1135,6 +1135,61 @@ Results are cached, so everything you searched before still works offline. Set t
 			<string>popupbutton</string>
 			<key>variable</key>
 			<string>svg_size</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string></string>
+				<key>placeholder</key>
+				<string>#1f2937</string>
+				<key>required</key>
+				<false/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>Hex colour that replaces currentColor in copied SVGs, JSX and data URIs (a data URI in CSS can’t inherit the text colour). Leave empty to keep currentColor.</string>
+			<key>label</key>
+			<string>Colour of copied icons</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>copy_color</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>iconify</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>mdi:home (Iconify)</string>
+						<string>iconify</string>
+					</array>
+					<array>
+						<string>i-mdi-home (UnoCSS, Tailwind CSS)</string>
+						<string>class</string>
+					</array>
+					<array>
+						<string>&lt;Icon icon="mdi:home" /&gt; (Iconify components)</string>
+						<string>component</string>
+					</array>
+					<array>
+						<string>MdiHome (component name)</string>
+						<string>pascal</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string>Copy names as (⌃↩)</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>name_format</string>
 		</dict>
 		<dict>
 			<key>config</key>
