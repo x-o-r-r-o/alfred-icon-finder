@@ -419,7 +419,8 @@ const SVG_MAX_BYTES = 2e6;
 // page or previewed: scripts, foreignObject (HTML), event handlers, external or javascript: links, CSS
 // @import and external url(). Internal references (#id) and embedded raster images stay.
 function sanitizeSvg(svg) {
-  let s = String(svg);
+  // no DOCTYPE: its entities could fetch files (SYSTEM) or expand exponentially
+  let s = String(svg).replace(/<!DOCTYPE[^>\[]*(\[[\s\S]*?\])?\s*>/gi, "");
   for (const tag of ["script", "foreignObject", "iframe", "embed", "object"]) {
     s = s.replace(new RegExp(`<(?:svg:)?${tag}\\b[^>]*?/>`, "gi"), "")
       .replace(new RegExp(`<((?:svg:)?${tag})\\b[\\s\\S]*?</\\1\\s*>`, "gi"), "")
@@ -1288,7 +1289,7 @@ function setSuggestions(q, c, query) {
       valid: false, autocomplete: `${before}@${k} `,
     }));
   if (!Object.keys(coll).length) items.push(info("Couldn’t load the list of icon sets", "Check the internet connection, or type the set’s prefix, like @mdi", "offline"));
-  else if (!items.length) items.push(info("No matching icon set", `Nothing matches “${p}”. Type @ to list every set`, "info"));
+  else if (!items.length) items.push(info("No matching icon set", `Nothing matches “${clean(p)}”. Type @ to list every set`, "info"));
   const all = info("All icon sets  @all", "Search every set, ignoring the preferred sets", "set", { autocomplete: `${before}@all ` });
   if (!p || "all".startsWith(p)) items.push(all);
   return items;
@@ -1395,7 +1396,7 @@ function iconItems(query) {
     } else if (!r.throttled) items.push(offlineNotice(r.error, "Icon results"));
   } else if (!items.length) {
     const where = prefixes.length ? ` in ${prefixes.map((p) => (own(coll, p) ? coll[p].name : "@" + p)).join(", ")}` : "";
-    items.push(info("No icons found", `Nothing matches “${q.text}”${where}. Try another word${prefixes.length ? " or @all" : ""}`, "info"));
+    items.push(info("No icons found", `Nothing matches “${clean(q.text)}”${where}. Try another word${prefixes.length ? " or @all" : ""}`, "info"));
   }
   enqueue(queue);
   return { items, extra: rerunFields(query, queue.length, r.throttled) };
@@ -1514,7 +1515,7 @@ function logoItems(query) {
   if (!items.length && throttled) items.push(info("Searching…", error, "pending"));
   else if (!items.length) {
     if (error) items.push(info(offline ? "You’re offline" : "Couldn’t load logos", offline ? "Connect to the internet to search logos" : error, offline ? "offline" : "error"));
-    else items.push(info("No logos found", `Nothing matches “${query.trim()}” in svgl or Simple Icons`, "info"));
+    else items.push(info("No logos found", `Nothing matches “${clean(query)}” in svgl or Simple Icons`, "info"));
   } else {
     for (const [res, name] of [[r, "svgl"], [si, "Simple Icons"]]) {
       if (!res.error || res.throttled) continue;
@@ -1656,8 +1657,8 @@ function fontItems(query) {
     const style = axis && axis[2] > axis[1] ? `variable ${axis[1]}–${axis[2]}` : `${weights} weight${weights === 1 ? "" : "s"}`;
     const specimen = `https://fonts.google.com/specimen/${encodeURIComponent(f.n).replace(/%20/g, "+")}`;
     return {
-      title: f.n,
-      subtitle: [f.c, style + (italics ? " + italics" : ""), `#${popRank.get(f.n)} most popular`, f.d.length ? `by ${f.d.join(", ")}` : ""].filter(Boolean).join(" · "),
+      title: clean(f.n),
+      subtitle: [clean(f.c), style + (italics ? " + italics" : ""), `#${popRank.get(f.n)} most popular`, f.d.length ? `by ${f.d.join(", ")}` : ""].filter(Boolean).join(" · "),
       arg: specimen,
       icon: { path: `icons/${fontIcon(f.c)}.png` },
       quicklookurl: specimen,
@@ -1672,7 +1673,7 @@ function fontItems(query) {
     };
   });
   if (!items.length) {
-    items.push(info("No fonts found", `Nothing matches “${query.trim()}”${q.category ? " in " + q.category : ""}. Categories: serif: sans: mono: display: handwriting:`, "info"));
+    items.push(info("No fonts found", `Nothing matches “${clean(query)}”${q.category ? " in " + q.category : ""}. Categories: serif: sans: mono: display: handwriting:`, "info"));
   }
   if (r.stale && r.error && !r.throttled) items.push(offlineNotice(r.error, "The font list"));
   return { items };

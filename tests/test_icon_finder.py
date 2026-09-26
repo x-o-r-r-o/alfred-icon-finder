@@ -1103,6 +1103,7 @@ class Audit4Tests(unittest.TestCase):
         self.assertIn('style={{ fill: "url(\\"#g\\")" }}', jsx)  # &quot; decoded inside the JS object
         cached = open(self.e.files and os.path.join(self.e.cache, "svg", "svgl", self.e.files("svg/svgl")[0])).read()
         self.assertNotIn("script", cached)  # stored clean, so Quick Look shows the clean file too
+        self.assertNotIn("ENTITY", cached)
         # the renderers never fetch anything: NSImage (CoreSVG) and the Quick Look fallback
         raw = HOSTILE.replace("BASE", MOCK.base)
         for ql in ("", "1"):

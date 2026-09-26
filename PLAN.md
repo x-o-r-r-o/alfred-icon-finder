@@ -23,6 +23,8 @@ Raycast demand this workflow replaces (downloads, 2026-09-26):
 - [x] Rendered PNG previews (NSImage SVG, Quick Look fallback), fetched in parallel in the background, Script Filter rerun
 - [x] `logo <brand>` search svgl.app logos (light/dark variants, wordmarks) + Simple Icons / SVG Logos fallback
 - [x] Actions: copy/paste SVG, copy JSX, copy name, copy data URI, save PNG, open in browser, Quick Look
+- [x] Copy names as `mdi:home`, `i-mdi-home`, `<Icon icon=… />` or `MdiHome`; optional colour for copied SVG/JSX/data URIs (audit 4, from Raycast Iconify requests)
+- [x] SVGs sanitized before storing, rendering or copying; one background worker (mkdir lock + watchdog); requests throttled across processes (audit 4)
 - [x] `font <name>` Google Fonts: category filters, copy `<link>`, `@import`, `font-family`, next/font, stylesheet URL
 - [ ] ~~Download family~~ (Google Fonts no longer offers a zip download endpoint; the specimen page has the button)
 - [x] Offline: cached searches, lists and SVGs; back-off after network failures and HTTP 429
