@@ -31,7 +31,7 @@ def scriptfilter(o):
         "queuedelaycustom": 3,
         "queuedelayimmediatelyinitially": True,
         "queuedelaymode": o.get("queuedelaymode", 0),
-        "queuemode": 1,
+        "queuemode": o.get("queuemode", 1),
         "runningsubtext": o.get("running", "…"),
         "script": o["script"],
         "scriptargtype": 1,

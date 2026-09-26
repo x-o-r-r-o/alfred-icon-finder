@@ -72,6 +72,8 @@ class Mock:
                 q = dict(urllib.parse.parse_qsl(u.query, keep_blank_values=True))
                 mock.hits[u.path] = mock.hits.get(u.path, 0) + 1
                 mock.queries.append((u.path, q))
+                if mock.mode.get("delay"):
+                    time.sleep(mock.mode["delay"])  # a slow server, for killing a Script Filter mid-request
                 forced = mock.mode.get(u.path.split("/")[1])
                 if forced == "garbage":
                     return self.send(200, "<html>not json</html>", "text/html")
@@ -1039,7 +1041,7 @@ class Audit4Tests(unittest.TestCase):
         e = self.e
         qs = ["home", "mdi:account", "mdi:bell", "lucide:house", "tabler:arrow-up", "mdi:a1", "mdi:a2", "mdi:a3", "mdi:a4", "mdi:a5"]
         procs = [subprocess.Popen(["osascript", "-l", "JavaScript", "./finder.js", "icon", q], cwd=SRC, env=e.vars(IF_SYNC=""),
-                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE) for q in qs]
+                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) for q in qs]  # a full pipe would block them
         peak = 0
         while any(p.poll() is None for p in procs):
             peak = max(peak, workers())
@@ -1532,6 +1534,36 @@ class Round4Tests(unittest.TestCase):
         self.assertEqual(width, 128)
         sub = self.e.sf("icon", "mdi:home", png_folder="clipboard")["items"][0]["mods"]["shift"]["subtitle"]
         self.assertEqual(sub, "Copy a 512 px PNG image")
+
+    def test_killed_mid_request(self):
+        """Alfred terminates the previous Script Filter on every keystroke (queuemode 2): a process killed while it
+        holds a fetch lock mustn't stall the next one, nor leave a half-written cache file."""
+        for kind, query, sig in [("font", "lora", 15), ("icon", "zzkill", 9)]:
+            MOCK.reset()
+            MOCK.mode["delay"] = 3
+            e = Env()
+            p = subprocess.Popen(["osascript", "-l", "JavaScript", "./finder.js", kind, query], cwd=SRC, env=e.vars(),
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            deadline = time.time() + 5
+            while time.time() < deadline and not any(f.endswith(".fetching") for _, ds, _ in os.walk(e.cache) for f in ds):
+                time.sleep(0.05)
+            p.send_signal(sig)
+            p.wait()
+            MOCK.mode.clear()
+            started = time.time()
+            d = e.sf(kind, query)
+            self.assertLess(time.time() - started, 2.5, (kind, titles(d)))
+            self.assertNotIn("Still loading: try again in a moment", [i.get("subtitle") for i in d["items"]])
+            if kind == "font":
+                self.assertEqual(titles(d)[0], "Lora")
+            left = [os.path.join(dp, f) for dp, ds, fs in os.walk(e.cache) for f in ds + fs if f.endswith(".fetching")]
+            self.assertEqual(left, [])
+
+    def test_script_filters_terminate_previous(self):
+        with open(os.path.join(SRC, "info.plist"), "rb") as f:
+            p = plistlib.load(f)
+        modes = [o["config"]["queuemode"] for o in p["objects"] if o["type"].endswith("scriptfilter")]
+        self.assertEqual(modes, [2, 2, 2])
 
     def test_notification_only_when_populated(self):
         """Actions connected to the notification (only shown if populated) print nothing when they fail, and no

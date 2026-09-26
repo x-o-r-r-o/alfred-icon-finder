@@ -301,7 +301,8 @@
       "subtext": "200,000+ open source icons from Iconify",
       "running": "Searching Iconify…",
       "script": "osascript -l JavaScript ./finder.js icon \"$1\"",
-      "queuedelaymode": 1
+      "queuedelaymode": 1,
+      "queuemode": 2
     },
     {
       "id": "sf_logo",
@@ -311,7 +312,8 @@
       "subtext": "SVG brand logos from svgl and Simple Icons",
       "running": "Searching logos…",
       "script": "osascript -l JavaScript ./finder.js logo \"$1\"",
-      "queuedelaymode": 1
+      "queuedelaymode": 1,
+      "queuemode": 2
     },
     {
       "id": "sf_font",
@@ -320,7 +322,8 @@
       "title": "Search Google Fonts",
       "subtext": "Copy embed code, @import or font-family",
       "running": "Loading Google Fonts…",
-      "script": "osascript -l JavaScript ./finder.js font \"$1\""
+      "script": "osascript -l JavaScript ./finder.js font \"$1\"",
+      "queuemode": 2
     },
     {
       "id": "ua_icon",

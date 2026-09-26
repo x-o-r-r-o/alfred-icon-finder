@@ -121,11 +121,14 @@ function readJSON(p) {
 function remove(p) {
   FM.removeItemAtPathError(p, $());
 }
+// rename(2) replaces the target atomically: a Script Filter reading it never sees it missing or half written
+ObjC.bindFunction("rename", ["int", ["char *", "char *"]]);
+ObjC.bindFunction("kill", ["int", ["int", "int"]]);
 function move(from, to) {
-  remove(to);
   mkdirp(dirname(to));
-  return FM.moveItemAtPathToPathError(from, to, $());
+  return $.rename(from, to) === 0;
 }
+const PID = $.NSProcessInfo.processInfo.processIdentifier;
 function attrs(p) {
   const a = FM.attributesOfItemAtPathError(p, $());
   return a.isNil() ? null : a;
@@ -248,10 +251,14 @@ function cachedJSON(url, path, ttl, timeout, transform) {
   }
   const service = serviceFor(url);
   // one process fetches a URL at a time; the others (parallel keystrokes, reruns) wait for its result
+  // Alfred terminates the previous Script Filter on each keystroke (queuemode 2): a lock whose owner is gone is stale
   const lock = `${path}.fetching`;
-  if (!acquireLock(lock, timeout + 10)) {
+  if (!acquireOwnedLock(lock, timeout + 10)) {
     const until = Date.now() + (timeout + 2) * 1000;
-    while (exists(lock) && Date.now() < until) $.NSThread.sleepForTimeInterval(0.1);
+    while (exists(lock) && Date.now() < until) {
+      $.NSThread.sleepForTimeInterval(0.1);
+      if (!lockOwnerAlive(lock) && acquireOwnedLock(lock, timeout + 10)) return fetchLocked(url, path, ttl, timeout, transform, lock);
+    }
     const fresh = fileAge(path);
     const d = fresh !== null && fresh < Math.max(ttl, timeout + 5) ? readCache(path, transform) : null;
     if (d) return { data: d };
@@ -259,6 +266,12 @@ function cachedJSON(url, path, ttl, timeout, transform) {
     const busy = { error: "Still loading: try again in a moment", status: -2, throttled: true };
     return stale ? Object.assign(busy, { data: stale, stale: true }) : busy;
   }
+  return fetchLocked(url, path, ttl, timeout, transform, lock);
+}
+
+// cachedJSON with its lock held: fetch, store, release
+function fetchLocked(url, path, ttl, timeout, transform, lock) {
+  const service = serviceFor(url);
   let r;
   try {
     // another process may have fetched it while this one waited for the lock
@@ -329,6 +342,24 @@ function backgroundList(kind, url, path, ttl, timeout, transform) {
 // (its holder was killed), so the expiry must be longer than the holder's hard timeout.
 function mkdirOnce(path) {
   return !!FM.createDirectoryAtPathWithIntermediateDirectoriesAttributesError(path, false, $(), $());
+}
+// A lock that records its owner's pid (a file inside the lock folder), so a killed owner is noticed at once
+function acquireOwnedLock(path, expiry) {
+  if (!acquireLock(path, expiry)) {
+    if (lockOwnerAlive(path)) return false;
+    remove(path);
+    if (!mkdirOnce(path)) return false;
+  }
+  writeText(`${path}/${PID}.pid`, "");
+  return true;
+}
+function lockOwnerAlive(path) {
+  const pids = listFiles(path).map((f) => /^(\d+)\.pid$/.exec(f)).filter(Boolean);
+  if (!pids.length) {
+    const age = fileAge(path);
+    return age !== null && age < 2; // just created: the owner is writing its pid
+  }
+  return pids.some((m) => $.kill(parseInt(m[1], 10), 0) === 0);
 }
 function acquireLock(path, expiry) {
   mkdirp(dirname(path));
@@ -1308,7 +1339,7 @@ function svgRow(o, c) {
       shift: { arg: o.id, valid: true, subtitle: pngSubtitle(c) },
       fn: { arg: o.id, valid: true, subtitle: "Copy as a data URI" },
       "cmd+alt": { arg: o.web, valid: true, subtitle: `Open on ${o.site}` },
-      "cmd+shift": { arg: o.url, valid: true, subtitle: `Copy the SVG’s URL: ${o.url}` },
+      "cmd+shift": { arg: o.url, valid: true, subtitle: "Copy the SVG’s URL" },
     },
   };
 }

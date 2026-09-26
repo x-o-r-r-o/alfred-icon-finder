@@ -52,6 +52,9 @@ Raycast demand this workflow replaces (downloads, 2026-09-26):
 - A worker or refresh that crashes without the watchdog noticing (e.g. the watchdog itself killed) leaves its lock for at most 3 minutes (1.5 for refreshes), after which it counts as stale.
 - Google Fonts has no documented metadata API; the workflow reads `fonts.google.com/metadata/fonts` (cached for 7 days, stale copy used offline).
 
+## Alfred runtime (round 4)
+- Script Filters use `queuemode` 2 (terminate the previous run), like Alfred's own network Script Filters (google-drive, google-suggest). Cache files are written atomically (write + rename); the per-URL fetch lock records its owner's pid, so a run Alfred kills mid-request no longer makes the next keystroke wait up to 32 s (fonts) for its lock to expire; the worker/refresh locks belong to the detached watchdog. A killed run's curl finishes on its own `--max-time` and leaves only a `.part` file that pruning removes.
+
 ## macOS 13 compatibility (round 4)
 - JavaScript: nothing newer than Safari 16.0 (no regex lookbehind, `?.`/`??` are fine but unused, no `Array.prototype.findLast`/`toSorted`).
 - `/usr/bin/curl` on macOS 13 is 7.84+: `--parallel-immediate` (7.68) and `-w %{urlnum}` (7.75) are available.
