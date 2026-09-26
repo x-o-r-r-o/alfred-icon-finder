@@ -1,0 +1,487 @@
+{
+  "bundleid": "io.github.x-o-r-r-o.icon-finder",
+  "name": "Icon & Font Finder",
+  "description": "Search 200,000+ icons, SVG brand logos and Google Fonts; copy SVG, JSX, PNG or embed code",
+  "category": "Productivity",
+  "createdby": "x-o-r-r-o",
+  "webaddress": "https://github.com/x-o-r-r-o/alfred-icon-finder",
+  "version": "1.0.0",
+  "variablesdontexport": [],
+  "config": [
+    {
+      "type": "textfield",
+      "variable": "keyword_icon",
+      "label": "Keywords",
+      "description": "Search icons",
+      "config": {
+        "default": "icon",
+        "placeholder": "icon",
+        "required": true,
+        "trim": true
+      }
+    },
+    {
+      "type": "textfield",
+      "variable": "keyword_logo",
+      "label": "",
+      "description": "Search brand logos",
+      "config": {
+        "default": "logo",
+        "placeholder": "logo",
+        "required": true,
+        "trim": true
+      }
+    },
+    {
+      "type": "textfield",
+      "variable": "keyword_font",
+      "label": "",
+      "description": "Search Google Fonts",
+      "config": {
+        "default": "font",
+        "placeholder": "font",
+        "required": true,
+        "trim": true
+      }
+    },
+    {
+      "type": "textfield",
+      "variable": "icon_sets",
+      "label": "Preferred icon sets",
+      "description": "Comma-separated set prefixes shown first, like lucide, tabler, mdi. Type @ after the keyword to list sets.",
+      "config": {
+        "default": "",
+        "placeholder": "lucide, tabler, mdi",
+        "required": false,
+        "trim": true
+      }
+    },
+    {
+      "type": "checkbox",
+      "variable": "icon_sets_only",
+      "label": "",
+      "description": "",
+      "config": {
+        "default": false,
+        "required": false,
+        "text": "Only search the preferred sets (type @all to search every set)"
+      }
+    },
+    {
+      "type": "popupbutton",
+      "variable": "icon_limit",
+      "label": "Icon results",
+      "description": "",
+      "config": {
+        "default": "64",
+        "pairs": [
+          [
+            "32",
+            "32"
+          ],
+          [
+            "64",
+            "64"
+          ],
+          [
+            "100",
+            "100"
+          ],
+          [
+            "200",
+            "200"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "popupbutton",
+      "variable": "preview_color",
+      "label": "Preview colour",
+      "description": "Colour of single-colour icons in Alfred. Automatic follows the Alfred theme.",
+      "config": {
+        "default": "auto",
+        "pairs": [
+          [
+            "Automatic",
+            "auto"
+          ],
+          [
+            "Grey",
+            "grey"
+          ],
+          [
+            "Black",
+            "black"
+          ],
+          [
+            "White",
+            "white"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "popupbutton",
+      "variable": "svg_size",
+      "label": "SVG size",
+      "description": "Width and height of copied SVGs and JSX",
+      "config": {
+        "default": "keep",
+        "pairs": [
+          [
+            "As published (1em)",
+            "keep"
+          ],
+          [
+            "16 px",
+            "16"
+          ],
+          [
+            "24 px",
+            "24"
+          ],
+          [
+            "32 px",
+            "32"
+          ],
+          [
+            "Remove (viewBox only)",
+            "none"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "popupbutton",
+      "variable": "png_size",
+      "label": "PNG size (⇧↩)",
+      "description": "",
+      "config": {
+        "default": "512",
+        "pairs": [
+          [
+            "128 px",
+            "128"
+          ],
+          [
+            "256 px",
+            "256"
+          ],
+          [
+            "512 px",
+            "512"
+          ],
+          [
+            "1024 px",
+            "1024"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "textfield",
+      "variable": "png_color",
+      "label": "PNG colour",
+      "description": "Hex colour for single-colour icons in saved PNGs",
+      "config": {
+        "default": "#000000",
+        "placeholder": "#000000",
+        "required": false,
+        "trim": true
+      }
+    },
+    {
+      "type": "popupbutton",
+      "variable": "png_folder",
+      "label": "Save PNGs to",
+      "description": "",
+      "config": {
+        "default": "downloads",
+        "pairs": [
+          [
+            "Downloads",
+            "downloads"
+          ],
+          [
+            "Desktop",
+            "desktop"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "popupbutton",
+      "variable": "cache_limit_mb",
+      "label": "Preview cache",
+      "description": "Oldest previews are deleted above this size",
+      "config": {
+        "default": "100",
+        "pairs": [
+          [
+            "25 MB",
+            "25"
+          ],
+          [
+            "100 MB",
+            "100"
+          ],
+          [
+            "250 MB",
+            "250"
+          ],
+          [
+            "1 GB",
+            "1000"
+          ]
+        ]
+      }
+    }
+  ],
+  "objects": [
+    {
+      "id": "sf_icon",
+      "type": "scriptfilter",
+      "keyword": "{var:keyword_icon}",
+      "title": "Search Icons",
+      "subtext": "200,000+ open source icons from Iconify",
+      "running": "Searching Iconify…",
+      "script": "osascript -l JavaScript ./finder.js icon \"$1\"",
+      "queuedelaymode": 1
+    },
+    {
+      "id": "sf_logo",
+      "type": "scriptfilter",
+      "keyword": "{var:keyword_logo}",
+      "title": "Search Logos",
+      "subtext": "SVG brand logos from svgl and Simple Icons",
+      "running": "Searching logos…",
+      "script": "osascript -l JavaScript ./finder.js logo \"$1\""
+    },
+    {
+      "id": "sf_font",
+      "type": "scriptfilter",
+      "keyword": "{var:keyword_font}",
+      "title": "Search Google Fonts",
+      "subtext": "Copy embed code, @import or font-family",
+      "running": "Loading Google Fonts…",
+      "script": "osascript -l JavaScript ./finder.js font \"$1\""
+    },
+    {
+      "id": "ua_icon",
+      "type": "universalaction",
+      "name": "Search Icons",
+      "text": true
+    },
+    {
+      "id": "act_svg",
+      "type": "script",
+      "script": "osascript -l JavaScript ./finder.js action svg \"$1\"",
+      "note": "Copy SVG"
+    },
+    {
+      "id": "act_paste",
+      "type": "script",
+      "script": "osascript -l JavaScript ./finder.js action svg \"$1\"",
+      "note": "Paste SVG"
+    },
+    {
+      "id": "act_jsx",
+      "type": "script",
+      "script": "osascript -l JavaScript ./finder.js action jsx \"$1\"",
+      "note": "JSX component"
+    },
+    {
+      "id": "act_uri",
+      "type": "script",
+      "script": "osascript -l JavaScript ./finder.js action datauri \"$1\"",
+      "note": "Data URI"
+    },
+    {
+      "id": "act_png",
+      "type": "script",
+      "script": "osascript -l JavaScript ./finder.js action png \"$1\"",
+      "note": "Save PNG and reveal it"
+    },
+    {
+      "id": "cond_copy",
+      "type": "conditional",
+      "conditions": [
+        {
+          "id": "has",
+          "mode": 1,
+          "match": "",
+          "label": "Has result"
+        }
+      ],
+      "elselabel": "Failed",
+      "hideelse": true,
+      "note": "Nothing is copied when the download failed"
+    },
+    {
+      "id": "cond_paste",
+      "type": "conditional",
+      "conditions": [
+        {
+          "id": "has",
+          "mode": 1,
+          "match": "",
+          "label": "Has result"
+        }
+      ],
+      "elselabel": "Failed",
+      "hideelse": true
+    },
+    {
+      "id": "copy",
+      "type": "clipboard",
+      "autopaste": false
+    },
+    {
+      "id": "paste",
+      "type": "clipboard",
+      "autopaste": true
+    },
+    {
+      "id": "open",
+      "type": "openurl"
+    },
+    {
+      "id": "notify",
+      "type": "notification"
+    }
+  ],
+  "connections": [
+    {
+      "from": "ua_icon",
+      "to": "sf_icon"
+    },
+    {
+      "from": "sf_icon",
+      "to": "act_svg"
+    },
+    {
+      "from": "sf_icon",
+      "to": "act_paste",
+      "mod": "cmd"
+    },
+    {
+      "from": "sf_icon",
+      "to": "act_jsx",
+      "mod": "alt"
+    },
+    {
+      "from": "sf_icon",
+      "to": "copy",
+      "mod": "ctrl"
+    },
+    {
+      "from": "sf_icon",
+      "to": "act_png",
+      "mod": "shift"
+    },
+    {
+      "from": "sf_icon",
+      "to": "act_uri",
+      "mod": "fn"
+    },
+    {
+      "from": "sf_icon",
+      "to": "open",
+      "mod": "cmd+alt"
+    },
+    {
+      "from": "sf_logo",
+      "to": "act_svg"
+    },
+    {
+      "from": "sf_logo",
+      "to": "act_paste",
+      "mod": "cmd"
+    },
+    {
+      "from": "sf_logo",
+      "to": "act_jsx",
+      "mod": "alt"
+    },
+    {
+      "from": "sf_logo",
+      "to": "copy",
+      "mod": "ctrl"
+    },
+    {
+      "from": "sf_logo",
+      "to": "act_png",
+      "mod": "shift"
+    },
+    {
+      "from": "sf_logo",
+      "to": "act_uri",
+      "mod": "fn"
+    },
+    {
+      "from": "sf_logo",
+      "to": "open",
+      "mod": "cmd+alt"
+    },
+    {
+      "from": "sf_font",
+      "to": "open"
+    },
+    {
+      "from": "sf_font",
+      "to": "copy",
+      "mod": "cmd"
+    },
+    {
+      "from": "sf_font",
+      "to": "copy",
+      "mod": "alt"
+    },
+    {
+      "from": "sf_font",
+      "to": "copy",
+      "mod": "ctrl"
+    },
+    {
+      "from": "sf_font",
+      "to": "copy",
+      "mod": "shift"
+    },
+    {
+      "from": "sf_font",
+      "to": "copy",
+      "mod": "fn"
+    },
+    {
+      "from": "act_svg",
+      "to": "cond_copy"
+    },
+    {
+      "from": "act_jsx",
+      "to": "cond_copy"
+    },
+    {
+      "from": "act_uri",
+      "to": "cond_copy"
+    },
+    {
+      "from": "act_paste",
+      "to": "cond_paste"
+    },
+    {
+      "from": "cond_copy",
+      "to": "copy",
+      "output": "has"
+    },
+    {
+      "from": "cond_paste",
+      "to": "paste",
+      "output": "has"
+    },
+    {
+      "from": "act_png",
+      "to": "notify"
+    }
+  ]
+}

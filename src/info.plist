@@ -7,46 +7,924 @@
 	<key>category</key>
 	<string>Productivity</string>
 	<key>connections</key>
-	<dict/>
+	<dict>
+		<key>00A722C6-2A09-58ED-B9FD-9E1A66141E93</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>4FB11F36-1E81-5746-9BD8-FFA631F6C812</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>16FFBD0A-8AD8-5BF9-8C99-CE631109B114</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>F7DC10E2-1F22-543C-9E27-CB1CBE104CBD</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>sourceoutputuid</key>
+				<string>8955BD7A-2B1D-5905-8825-241241F83176</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>31F16F2F-030B-58BF-B667-C0341F8A979F</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>F9C1A384-CE26-57B6-B8A1-B88391E0DAC2</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>4FB11F36-1E81-5746-9BD8-FFA631F6C812</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>0159F452-FE6D-5E81-8480-F9544AC0FFF5</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>sourceoutputuid</key>
+				<string>FA349277-DC4F-5D27-95D4-16A0B6ED16DA</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>9586041D-BE46-5CEF-9E7A-B429A73D7499</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>BA07C154-61E8-5C7F-B201-E60BA0FA278D</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>0159F452-FE6D-5E81-8480-F9544AC0FFF5</string>
+				<key>modifiers</key>
+				<integer>1048576</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>0159F452-FE6D-5E81-8480-F9544AC0FFF5</string>
+				<key>modifiers</key>
+				<integer>524288</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>0159F452-FE6D-5E81-8480-F9544AC0FFF5</string>
+				<key>modifiers</key>
+				<integer>262144</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>0159F452-FE6D-5E81-8480-F9544AC0FFF5</string>
+				<key>modifiers</key>
+				<integer>131072</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>0159F452-FE6D-5E81-8480-F9544AC0FFF5</string>
+				<key>modifiers</key>
+				<integer>8388608</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>977514F1-ECC5-5EAB-83F6-AF4647429D10</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>4FB11F36-1E81-5746-9BD8-FFA631F6C812</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>CE33A1D0-7253-5C2B-A70D-A47BDE4C5F5C</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>7C75663D-39DA-5102-936A-C7978ED6E5F5</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>DBAE3C5D-084D-5244-A547-1445D1FE7F3E</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>16FFBD0A-8AD8-5BF9-8C99-CE631109B114</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>DE0C40FF-2D1B-52F3-A8B8-4C4F7487D66E</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>977514F1-ECC5-5EAB-83F6-AF4647429D10</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>DBAE3C5D-084D-5244-A547-1445D1FE7F3E</string>
+				<key>modifiers</key>
+				<integer>1048576</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>E108BC91-3B0E-5F6C-A149-DD0E3521124C</string>
+				<key>modifiers</key>
+				<integer>524288</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>0159F452-FE6D-5E81-8480-F9544AC0FFF5</string>
+				<key>modifiers</key>
+				<integer>262144</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>CE33A1D0-7253-5C2B-A70D-A47BDE4C5F5C</string>
+				<key>modifiers</key>
+				<integer>131072</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>00A722C6-2A09-58ED-B9FD-9E1A66141E93</string>
+				<key>modifiers</key>
+				<integer>8388608</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>BA07C154-61E8-5C7F-B201-E60BA0FA278D</string>
+				<key>modifiers</key>
+				<integer>1572864</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>E108BC91-3B0E-5F6C-A149-DD0E3521124C</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>4FB11F36-1E81-5746-9BD8-FFA631F6C812</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>F9C1A384-CE26-57B6-B8A1-B88391E0DAC2</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>977514F1-ECC5-5EAB-83F6-AF4647429D10</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>DBAE3C5D-084D-5244-A547-1445D1FE7F3E</string>
+				<key>modifiers</key>
+				<integer>1048576</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>E108BC91-3B0E-5F6C-A149-DD0E3521124C</string>
+				<key>modifiers</key>
+				<integer>524288</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>0159F452-FE6D-5E81-8480-F9544AC0FFF5</string>
+				<key>modifiers</key>
+				<integer>262144</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>CE33A1D0-7253-5C2B-A70D-A47BDE4C5F5C</string>
+				<key>modifiers</key>
+				<integer>131072</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>00A722C6-2A09-58ED-B9FD-9E1A66141E93</string>
+				<key>modifiers</key>
+				<integer>8388608</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>BA07C154-61E8-5C7F-B201-E60BA0FA278D</string>
+				<key>modifiers</key>
+				<integer>1572864</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+	</dict>
 	<key>createdby</key>
 	<string>x-o-r-r-o</string>
 	<key>description</key>
-	<string>Search SVG logos and 200k+ icons (Iconify, Lucide, Heroicons, Material, Simple Icons) and Google Fonts.</string>
+	<string>Search 200,000+ icons, SVG brand logos and Google Fonts; copy SVG, JSX, PNG or embed code</string>
+	<key>disabled</key>
+	<false/>
 	<key>name</key>
 	<string>Icon &amp; Font Finder</string>
 	<key>objects</key>
-	<array/>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<false/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>{var:keyword_icon}</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>1</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string>Searching Iconify…</string>
+				<key>script</key>
+				<string>osascript -l JavaScript ./finder.js icon "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>skipuniversalaction</key>
+				<true/>
+				<key>subtext</key>
+				<string>200,000+ open source icons from Iconify</string>
+				<key>title</key>
+				<string>Search Icons</string>
+				<key>type</key>
+				<integer>0</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>F9C1A384-CE26-57B6-B8A1-B88391E0DAC2</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<false/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>{var:keyword_logo}</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string>Searching logos…</string>
+				<key>script</key>
+				<string>osascript -l JavaScript ./finder.js logo "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>skipuniversalaction</key>
+				<true/>
+				<key>subtext</key>
+				<string>SVG brand logos from svgl and Simple Icons</string>
+				<key>title</key>
+				<string>Search Logos</string>
+				<key>type</key>
+				<integer>0</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>DE0C40FF-2D1B-52F3-A8B8-4C4F7487D66E</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<false/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>{var:keyword_font}</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string>Loading Google Fonts…</string>
+				<key>script</key>
+				<string>osascript -l JavaScript ./finder.js font "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>skipuniversalaction</key>
+				<true/>
+				<key>subtext</key>
+				<string>Copy embed code, @import or font-family</string>
+				<key>title</key>
+				<string>Search Google Fonts</string>
+				<key>type</key>
+				<integer>0</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>9586041D-BE46-5CEF-9E7A-B429A73D7499</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>acceptsfiles</key>
+				<false/>
+				<key>acceptsmulti</key>
+				<integer>0</integer>
+				<key>acceptstext</key>
+				<true/>
+				<key>acceptsurls</key>
+				<false/>
+				<key>name</key>
+				<string>Search Icons</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.universalaction</string>
+			<key>uid</key>
+			<string>31F16F2F-030B-58BF-B667-C0341F8A979F</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>osascript -l JavaScript ./finder.js action svg "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>977514F1-ECC5-5EAB-83F6-AF4647429D10</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>osascript -l JavaScript ./finder.js action svg "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>DBAE3C5D-084D-5244-A547-1445D1FE7F3E</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>osascript -l JavaScript ./finder.js action jsx "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>E108BC91-3B0E-5F6C-A149-DD0E3521124C</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>osascript -l JavaScript ./finder.js action datauri "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>00A722C6-2A09-58ED-B9FD-9E1A66141E93</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>osascript -l JavaScript ./finder.js action png "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>CE33A1D0-7253-5C2B-A70D-A47BDE4C5F5C</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>conditions</key>
+				<array>
+					<dict>
+						<key>inputstring</key>
+						<string></string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>1</integer>
+						<key>matchstring</key>
+						<string></string>
+						<key>outputlabel</key>
+						<string>Has result</string>
+						<key>uid</key>
+						<string>FA349277-DC4F-5D27-95D4-16A0B6ED16DA</string>
+					</dict>
+				</array>
+				<key>elselabel</key>
+				<string>Failed</string>
+				<key>hideelse</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.conditional</string>
+			<key>uid</key>
+			<string>4FB11F36-1E81-5746-9BD8-FFA631F6C812</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>conditions</key>
+				<array>
+					<dict>
+						<key>inputstring</key>
+						<string></string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>1</integer>
+						<key>matchstring</key>
+						<string></string>
+						<key>outputlabel</key>
+						<string>Has result</string>
+						<key>uid</key>
+						<string>8955BD7A-2B1D-5905-8825-241241F83176</string>
+					</dict>
+				</array>
+				<key>elselabel</key>
+				<string>Failed</string>
+				<key>hideelse</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.conditional</string>
+			<key>uid</key>
+			<string>16FFBD0A-8AD8-5BF9-8C99-CE631109B114</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>autopaste</key>
+				<false/>
+				<key>clipboardtext</key>
+				<string>{query}</string>
+				<key>ignoredynamicplaceholders</key>
+				<true/>
+				<key>transient</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.clipboard</string>
+			<key>uid</key>
+			<string>0159F452-FE6D-5E81-8480-F9544AC0FFF5</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>autopaste</key>
+				<true/>
+				<key>clipboardtext</key>
+				<string>{query}</string>
+				<key>ignoredynamicplaceholders</key>
+				<true/>
+				<key>transient</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.clipboard</string>
+			<key>uid</key>
+			<string>F7DC10E2-1F22-543C-9E27-CB1CBE104CBD</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>browser</key>
+				<string></string>
+				<key>skipqueryencode</key>
+				<true/>
+				<key>skipvarencode</key>
+				<false/>
+				<key>spaces</key>
+				<string></string>
+				<key>url</key>
+				<string>{query}</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.openurl</string>
+			<key>uid</key>
+			<string>BA07C154-61E8-5C7F-B201-E60BA0FA278D</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>onlyshowifquerypopulated</key>
+				<true/>
+				<key>removeextension</key>
+				<false/>
+				<key>text</key>
+				<string>{query}</string>
+				<key>title</key>
+				<string>{var:alfred_workflow_name}</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>uid</key>
+			<string>7C75663D-39DA-5102-936A-C7978ED6E5F5</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+	</array>
 	<key>readme</key>
-	<string># Icon &amp; Font Finder
+	<string>## Usage
 
-Search SVG logos and 200k+ icons (Iconify, Lucide, Heroicons, Material, Simple Icons) and Google Fonts.
+Search every icon set on [Iconify](https://icon-sets.iconify.design) (Lucide, Material, Tabler, Heroicons, Phosphor, Font Awesome and 200 more) via the `icon` keyword. Each result shows a preview of the icon.
 
-&gt; **Status:** planned — not yet functional. See [PLAN.md](PLAN.md).
+Add `@` and a set name to search one set, like `icon @lucide arrow` or `icon set:mdi home`. Type `icon @` to browse the sets. Put your favourite sets first, or search only them, in the Workflow’s Configuration; `@all` then searches everything. Type an exact name like `mdi:home` to jump to it.
 
-## Usage
+Alternatively, search icons for the selected text via the Universal Action.
 
-Search SVG logos and 200k+ icons (Iconify, Lucide, Heroicons, Material, Simple Icons) and Google Fonts via the `icon` keyword.
+* &lt;kbd&gt;↩&lt;/kbd&gt; Copy the SVG.
+* &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Paste the SVG into the frontmost app.
+* &lt;kbd&gt;⌥&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy as a React (JSX) component.
+* &lt;kbd&gt;⌃&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the icon’s name, like `mdi:home`.
+* &lt;kbd&gt;⇧&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Save a PNG to Downloads and reveal it.
+* &lt;kbd&gt;fn&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy a data URI for CSS.
+* &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;⌥&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Open the icon on Iconify.
+* &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;Y&lt;/kbd&gt; Quick Look the icon.
 
-![Icon &amp; Font Finder results in Alfred](images/icon.png)
+### Logos
 
-* &lt;kbd&gt;↩&lt;/kbd&gt; Primary action.
-* &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Secondary action.
-* &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;Y&lt;/kbd&gt; Quick Look.
+Search SVG brand logos from [svgl](https://svgl.app) via the `logo` keyword, with light and dark variants and wordmarks. When svgl has few matches, logos from Simple Icons and SVG Logos follow. The keys are the same as for icons.
 
-Every keyword can be changed in the Workflow’s Configuration.
+### Fonts
 
-## Development
+Search Google Fonts via the `font` keyword. Results show the category, weights, whether the font is variable, and its popularity. Start with a category to filter, like `font serif:` or `font mono:code`, or type a category alone to list its most popular fonts.
 
-```bash
-./build.sh   # -&gt; dist/alfred-icon-finder-&lt;version&gt;.alfredworkflow
-```
+* &lt;kbd&gt;↩&lt;/kbd&gt; Open the font on Google Fonts.
+* &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the `&lt;link&gt;` embed code with every weight.
+* &lt;kbd&gt;⌥&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the CSS `@import`.
+* &lt;kbd&gt;⌃&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the `font-family` declaration.
+* &lt;kbd&gt;⇧&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the Next.js `next/font` import.
+* &lt;kbd&gt;fn&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the stylesheet URL.
 
-## AI disclosure
-
-This workflow is developed with the help of Claude (Anthropic), an AI assistant. All code is reviewed and tested by the author.
+Results are cached, so everything you searched before still works offline. Set the preview colour, the size of copied SVGs, the PNG size, colour and folder, and the preview cache size in the Workflow’s Configuration. Every keyword can be changed there too.
 </string>
 	<key>uidata</key>
-	<dict/>
+	<dict>
+		<key>00A722C6-2A09-58ED-B9FD-9E1A66141E93</key>
+		<dict>
+			<key>note</key>
+			<string>Data URI</string>
+			<key>xpos</key>
+			<integer>470</integer>
+			<key>ypos</key>
+			<integer>410</integer>
+		</dict>
+		<key>0159F452-FE6D-5E81-8480-F9544AC0FFF5</key>
+		<dict>
+			<key>xpos</key>
+			<integer>910</integer>
+			<key>ypos</key>
+			<integer>20</integer>
+		</dict>
+		<key>16FFBD0A-8AD8-5BF9-8C99-CE631109B114</key>
+		<dict>
+			<key>xpos</key>
+			<integer>690</integer>
+			<key>ypos</key>
+			<integer>150</integer>
+		</dict>
+		<key>31F16F2F-030B-58BF-B667-C0341F8A979F</key>
+		<dict>
+			<key>xpos</key>
+			<integer>30</integer>
+			<key>ypos</key>
+			<integer>280</integer>
+		</dict>
+		<key>4FB11F36-1E81-5746-9BD8-FFA631F6C812</key>
+		<dict>
+			<key>note</key>
+			<string>Nothing is copied when the download failed</string>
+			<key>xpos</key>
+			<integer>690</integer>
+			<key>ypos</key>
+			<integer>20</integer>
+		</dict>
+		<key>7C75663D-39DA-5102-936A-C7978ED6E5F5</key>
+		<dict>
+			<key>xpos</key>
+			<integer>690</integer>
+			<key>ypos</key>
+			<integer>280</integer>
+		</dict>
+		<key>9586041D-BE46-5CEF-9E7A-B429A73D7499</key>
+		<dict>
+			<key>xpos</key>
+			<integer>30</integer>
+			<key>ypos</key>
+			<integer>150</integer>
+		</dict>
+		<key>977514F1-ECC5-5EAB-83F6-AF4647429D10</key>
+		<dict>
+			<key>note</key>
+			<string>Copy SVG</string>
+			<key>xpos</key>
+			<integer>470</integer>
+			<key>ypos</key>
+			<integer>20</integer>
+		</dict>
+		<key>BA07C154-61E8-5C7F-B201-E60BA0FA278D</key>
+		<dict>
+			<key>xpos</key>
+			<integer>470</integer>
+			<key>ypos</key>
+			<integer>670</integer>
+		</dict>
+		<key>CE33A1D0-7253-5C2B-A70D-A47BDE4C5F5C</key>
+		<dict>
+			<key>note</key>
+			<string>Save PNG and reveal it</string>
+			<key>xpos</key>
+			<integer>470</integer>
+			<key>ypos</key>
+			<integer>540</integer>
+		</dict>
+		<key>DBAE3C5D-084D-5244-A547-1445D1FE7F3E</key>
+		<dict>
+			<key>note</key>
+			<string>Paste SVG</string>
+			<key>xpos</key>
+			<integer>470</integer>
+			<key>ypos</key>
+			<integer>150</integer>
+		</dict>
+		<key>DE0C40FF-2D1B-52F3-A8B8-4C4F7487D66E</key>
+		<dict>
+			<key>xpos</key>
+			<integer>30</integer>
+			<key>ypos</key>
+			<integer>20</integer>
+		</dict>
+		<key>E108BC91-3B0E-5F6C-A149-DD0E3521124C</key>
+		<dict>
+			<key>note</key>
+			<string>JSX component</string>
+			<key>xpos</key>
+			<integer>470</integer>
+			<key>ypos</key>
+			<integer>280</integer>
+		</dict>
+		<key>F7DC10E2-1F22-543C-9E27-CB1CBE104CBD</key>
+		<dict>
+			<key>xpos</key>
+			<integer>910</integer>
+			<key>ypos</key>
+			<integer>150</integer>
+		</dict>
+		<key>F9C1A384-CE26-57B6-B8A1-B88391E0DAC2</key>
+		<dict>
+			<key>xpos</key>
+			<integer>250</integer>
+			<key>ypos</key>
+			<integer>20</integer>
+		</dict>
+	</dict>
 	<key>userconfigurationconfig</key>
 	<array>
 		<dict>
@@ -62,9 +940,9 @@ This workflow is developed with the help of Claude (Anthropic), an AI assistant.
 				<true/>
 			</dict>
 			<key>description</key>
-			<string></string>
+			<string>Search icons</string>
 			<key>label</key>
-			<string>Icon keyword</string>
+			<string>Keywords</string>
 			<key>type</key>
 			<string>textfield</string>
 			<key>variable</key>
@@ -83,7 +961,7 @@ This workflow is developed with the help of Claude (Anthropic), an AI assistant.
 				<true/>
 			</dict>
 			<key>description</key>
-			<string></string>
+			<string>Search brand logos</string>
 			<key>label</key>
 			<string></string>
 			<key>type</key>
@@ -104,7 +982,7 @@ This workflow is developed with the help of Claude (Anthropic), an AI assistant.
 				<true/>
 			</dict>
 			<key>description</key>
-			<string></string>
+			<string>Search Google Fonts</string>
 			<key>label</key>
 			<string></string>
 			<key>type</key>
@@ -112,9 +990,274 @@ This workflow is developed with the help of Claude (Anthropic), an AI assistant.
 			<key>variable</key>
 			<string>keyword_font</string>
 		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string></string>
+				<key>placeholder</key>
+				<string>lucide, tabler, mdi</string>
+				<key>required</key>
+				<false/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>Comma-separated set prefixes shown first, like lucide, tabler, mdi. Type @ after the keyword to list sets.</string>
+			<key>label</key>
+			<string>Preferred icon sets</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>icon_sets</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<false/>
+				<key>required</key>
+				<false/>
+				<key>text</key>
+				<string>Only search the preferred sets (type @all to search every set)</string>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string></string>
+			<key>type</key>
+			<string>checkbox</string>
+			<key>variable</key>
+			<string>icon_sets_only</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>64</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>32</string>
+						<string>32</string>
+					</array>
+					<array>
+						<string>64</string>
+						<string>64</string>
+					</array>
+					<array>
+						<string>100</string>
+						<string>100</string>
+					</array>
+					<array>
+						<string>200</string>
+						<string>200</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string>Icon results</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>icon_limit</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>auto</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>Automatic</string>
+						<string>auto</string>
+					</array>
+					<array>
+						<string>Grey</string>
+						<string>grey</string>
+					</array>
+					<array>
+						<string>Black</string>
+						<string>black</string>
+					</array>
+					<array>
+						<string>White</string>
+						<string>white</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>Colour of single-colour icons in Alfred. Automatic follows the Alfred theme.</string>
+			<key>label</key>
+			<string>Preview colour</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>preview_color</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>keep</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>As published (1em)</string>
+						<string>keep</string>
+					</array>
+					<array>
+						<string>16 px</string>
+						<string>16</string>
+					</array>
+					<array>
+						<string>24 px</string>
+						<string>24</string>
+					</array>
+					<array>
+						<string>32 px</string>
+						<string>32</string>
+					</array>
+					<array>
+						<string>Remove (viewBox only)</string>
+						<string>none</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>Width and height of copied SVGs and JSX</string>
+			<key>label</key>
+			<string>SVG size</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>svg_size</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>512</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>128 px</string>
+						<string>128</string>
+					</array>
+					<array>
+						<string>256 px</string>
+						<string>256</string>
+					</array>
+					<array>
+						<string>512 px</string>
+						<string>512</string>
+					</array>
+					<array>
+						<string>1024 px</string>
+						<string>1024</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string>PNG size (⇧↩)</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>png_size</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>#000000</string>
+				<key>placeholder</key>
+				<string>#000000</string>
+				<key>required</key>
+				<false/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>Hex colour for single-colour icons in saved PNGs</string>
+			<key>label</key>
+			<string>PNG colour</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>png_color</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>downloads</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>Downloads</string>
+						<string>downloads</string>
+					</array>
+					<array>
+						<string>Desktop</string>
+						<string>desktop</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string>Save PNGs to</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>png_folder</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>100</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>25 MB</string>
+						<string>25</string>
+					</array>
+					<array>
+						<string>100 MB</string>
+						<string>100</string>
+					</array>
+					<array>
+						<string>250 MB</string>
+						<string>250</string>
+					</array>
+					<array>
+						<string>1 GB</string>
+						<string>1000</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>Oldest previews are deleted above this size</string>
+			<key>label</key>
+			<string>Preview cache</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>cache_limit_mb</string>
+		</dict>
 	</array>
+	<key>variables</key>
+	<dict/>
+	<key>variablesdontexport</key>
+	<array/>
 	<key>version</key>
-	<string>0.1.0</string>
+	<string>1.0.0</string>
 	<key>webaddress</key>
 	<string>https://github.com/x-o-r-r-o/alfred-icon-finder</string>
 </dict>

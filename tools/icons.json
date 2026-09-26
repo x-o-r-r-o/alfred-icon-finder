@@ -1,0 +1,16 @@
+{
+  "icon": ["star.square.on.square.fill", "#7C3AED"],
+  "search": ["magnifyingglass", "#7C3AED"],
+  "pending": ["square.dashed", "#94A3B8"],
+  "broken": ["questionmark.square.dashed", "#94A3B8"],
+  "logo": ["seal.fill", "#0EA5E9"],
+  "set": ["square.stack.3d.up.fill", "#7C3AED"],
+  "font": ["textformat", "#2563EB"],
+  "font-serif": ["character.book.closed.fill", "#B45309"],
+  "font-mono": ["chevron.left.forwardslash.chevron.right", "#475569"],
+  "font-display": ["textformat.size.larger", "#DB2777"],
+  "font-hand": ["signature", "#059669"],
+  "info": ["info.circle.fill", "#64748B"],
+  "offline": ["wifi.slash", "#EA580C"],
+  "error": ["exclamationmark.triangle.fill", "#DC2626"]
+}
