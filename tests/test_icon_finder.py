@@ -1211,9 +1211,12 @@ class FinalReviewTests(unittest.TestCase):
         e.sf("font", "inter")
         os.utime(os.path.join(e.cache, "fonts.json"), (time.time() - 30 * 86400,) * 2)
         self.assertEqual(titles(e.sf("font", "inter", IF_SYNC=""))[0], "Inter")  # stale list at once
+        fonts = os.path.join(e.cache, "fonts.json")
+        deadline = time.time() + 20  # the refresh runs in the background
+        while time.time() < deadline and os.path.getmtime(fonts) < time.time() - 60:
+            time.sleep(0.1)
+        self.assertGreater(os.path.getmtime(fonts), time.time() - 60)
         self.assertTrue(self.lock_gone(e, "refresh-fonts.lock", 20))
-        self.assertLess(os.path.getmtime(os.path.join(e.cache, "fonts.json")), time.time())
-        self.assertGreater(os.path.getmtime(os.path.join(e.cache, "fonts.json")), time.time() - 60)
 
     def test_damaged_cache_files(self):
         # final review: valid JSON of the wrong shape (an older format, a damaged file) crashed logos and fonts
