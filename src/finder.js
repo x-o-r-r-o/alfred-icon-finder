@@ -50,10 +50,11 @@ function cfg() {
     svgSize: env("svg_size", "keep"),
     pngSize: Math.min(Math.max(num(env("png_size", "512"), 512), 16), 4096),
     pngColor: hexColor(env("png_color", "#000000")) || "#000000",
-    pngFolder: env("png_folder", "downloads"),
+    pngFolder: env("png_folder", "downloads").trim(),
+    showRecent: env("show_recent", "1").trim() !== "0",
     cacheLimitMB: Math.max(num(env("cache_limit_mb", "100"), 100), 1),
     copyColor: hexColor(env("copy_color", "")),
-    nameFormat: env("name_format", "iconify"),
+    nameFormat: env("name_format", "iconify").trim(),
   };
 }
 
@@ -79,6 +80,13 @@ function cacheDir() {
   // pruning deletes files under this folder: never accept "", "/" or a relative path
   let dir = trimSlash(env("alfred_workflow_cache", ""));
   if (!/^\/[^/]/.test(dir) || /(^|\/)\.\.?(\/|$)/.test(dir)) dir = `${trimSlash($.NSTemporaryDirectory().js)}/alfred-icon-finder`;
+  mkdirp(dir);
+  return dir;
+}
+// Recently copied icons live in the workflow's data folder (kept when the cache is cleared); same path rules
+function dataDir() {
+  const dir = trimSlash(env("alfred_workflow_data", ""));
+  if (!/^\/[^/]/.test(dir) || /(^|\/)\.\.?(\/|$)/.test(dir)) return cacheDir();
   mkdirp(dir);
   return dir;
 }
@@ -1276,6 +1284,9 @@ function rerunFields(query, pending, throttled) {
 function folderLabel(c) {
   return c.pngFolder === "desktop" ? "Desktop" : "Downloads";
 }
+function pngSubtitle(c) {
+  return c.pngFolder === "clipboard" ? `Copy a ${c.pngSize} px PNG image` : `Save a ${c.pngSize} px PNG to ${folderLabel(c)}`;
+}
 
 // A row for anything backed by an SVG (icons and logos)
 function svgRow(o, c) {
@@ -1294,11 +1305,38 @@ function svgRow(o, c) {
       cmd: { arg: o.id, valid: true, subtitle: "Paste the SVG into the frontmost app" },
       alt: { arg: o.id, valid: true, subtitle: `Copy as a JSX component <${componentName(o.name)} />` },
       ctrl: { arg: o.copyName || o.name, valid: true, subtitle: `Copy the name: ${o.copyName || o.name}` },
-      shift: { arg: o.id, valid: true, subtitle: `Save a ${c.pngSize} px PNG to ${folderLabel(c)}` },
+      shift: { arg: o.id, valid: true, subtitle: pngSubtitle(c) },
       fn: { arg: o.id, valid: true, subtitle: "Copy as a data URI" },
       "cmd+alt": { arg: o.web, valid: true, subtitle: `Open on ${o.site}` },
+      "cmd+shift": { arg: o.url, valid: true, subtitle: `Copy the SVG’s URL: ${o.url}` },
     },
   };
+}
+
+// The public URL of the SVG (⌘⇧↩), for <img src> or CSS. Iconify's API applies the copy colour and SVG size itself.
+function svgUrl(ref, c) {
+  if (ref.kind !== "iconify") return ref.url;
+  const q = [];
+  if (c.copyColor) q.push(`color=${encodeURIComponent(c.copyColor)}`);
+  if (/^\d+$/.test(c.svgSize)) q.push(`height=${c.svgSize}`);
+  return `https://api.iconify.design/${ref.prefix}/${ref.name}.svg${q.length ? "?" + q.join("&") : ""}`;
+}
+
+// ---------- recently copied ----------
+
+// Item ids (see resolveId), newest first, in the data folder. Written after every successful action.
+const RECENT_MAX = 20;
+function recentPath() {
+  return `${dataDir()}/recent.json`;
+}
+function readRecent() {
+  const d = readJSON(recentPath());
+  return Array.isArray(d) ? d.filter((x) => typeof x === "string" && resolveId(x)) : [];
+}
+function addRecent(id) {
+  if (!cfg().showRecent || !resolveId(id)) return;
+  const list = [id].concat(readRecent().filter((x) => x !== id)).slice(0, RECENT_MAX);
+  writeText(recentPath(), JSON.stringify(list));
 }
 
 // ---------- icons (Iconify) ----------
@@ -1387,7 +1425,7 @@ function iconRow(prefix, name, coll, c, color, queue) {
     copyName: iconName(prefix, name, c.nameFormat),
     title: name,
     subtitle: [set.name || prefix, `${prefix}:${name}`, set.license].filter(Boolean).join(" · "),
-    ref, preview, pending: "pending",
+    ref, preview, pending: "pending", url: svgUrl(ref, c),
     web: `https://icon-sets.iconify.design/${prefix}/${name}/`,
     site: "icon-sets.iconify.design",
   }, c);
@@ -1420,12 +1458,22 @@ function iconItems(query) {
   }
   if (!q.text) {
     const scope = q.sets.length ? q.sets.map((s) => "@" + s).join(" ") : q.all || !c.setsOnly || !c.sets.length ? "every set" : c.sets.map((s) => "@" + s).join(" ");
-    return {
-      items: [
-        info("Search icons", `Type a name to search ${scope}: 200,000+ open source icons from Iconify`, "search"),
-        info("Filter by icon set", "Type @ and a set name, like “@lucide arrow” or “set:mdi home”", "set", { autocomplete: `${query.trim() ? query.trim() + " " : ""}@` }),
-      ],
-    };
+    const items = [
+      info("Search icons", `Type a name to search ${scope}: 200,000+ open source icons from Iconify`, "search"),
+      info("Filter by icon set", "Type @ and a set name, like “@lucide arrow” or “set:mdi home”", "set", { autocomplete: `${query.trim() ? query.trim() + " " : ""}@` }),
+    ];
+    // recently copied icons (in the chosen sets), so the ones you use often are one keystroke away
+    if (c.showRecent) {
+      const coll = collections(false);
+      for (const id of readRecent()) {
+        const ref = resolveId(id);
+        if (ref.kind !== "iconify" || (q.sets.length && q.sets.indexOf(ref.prefix) < 0)) continue;
+        const row = iconRow(ref.prefix, ref.name, coll, c, color, queue);
+        if (row) items.push(Object.assign(row, { subtitle: `Recently copied · ${row.subtitle}` }));
+      }
+    }
+    enqueue(queue);
+    return { items, extra: rerunFields(query, queue.length) };
   }
   const coll = collections(false);
   // "mdi:home" jumps to that icon, unless "mdi" isn't an icon set ("c:drive" is searched instead)
@@ -1528,12 +1576,63 @@ function matchScore(name, words, extra) {
   return null;
 }
 
+// Every file of an svgl entry, the variant that suits the Alfred theme first: [{ url, label, tile }]
+function logoVariants(x, dark) {
+  const out = [];
+  for (const [key, label] of [["route", ""], ["wordmark", "Wordmark"]]) {
+    const v = x[key];
+    if (!v) continue;
+    if (v.default) out.push({ url: v.default, label, tile: null });
+    const order = dark ? ["dark", "light"] : ["light", "dark"];
+    for (const t of order) if (v[t]) out.push({ url: v[t], label: [label, t === "light" ? "Light" : "Dark"].filter(Boolean).join(" "), tile: t });
+  }
+  return out;
+}
+
+function logoRow(x, v, c, queue) {
+  const ref = resolveId(`svgl:${v.url}`);
+  if (!ref) return null;
+  const slug = fold(x.title).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "logo";
+  const variant = v.label.toLowerCase().replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "");
+  return svgRow({
+    id: `svgl:${v.url}`,
+    name: variant ? `${slug}-${variant}` : slug,
+    title: v.label ? `${x.title} · ${v.label}` : x.title,
+    subtitle: [x.category.join(", "), "svgl", v.tile ? `for ${v.tile} backgrounds` : ""].filter(Boolean).join(" · "),
+    ref, preview: previewOrQueue(ref, previewColor(c), v.tile, queue), pending: "logo", url: ref.url,
+    web: `https://svgl.app/?search=${encodeURIComponent(x.title)}`,
+    site: "svgl.app",
+  }, c);
+}
+
 function logoItems(query) {
   const c = cfg();
   const queue = [];
   const words = fold(query).replace(/[\u0000-\u001f]/g, " ").trim().split(/\s+/).filter(Boolean);
   if (!words.length) {
-    return { items: [info("Search logos", "Type a brand name: 600+ SVG logos from svgl, plus Simple Icons", "logo")] };
+    const items = [info("Search logos", "Type a brand name: 600+ SVG logos from svgl, plus Simple Icons", "logo")];
+    if (c.showRecent) {
+      const list = readCache(`${cacheDir()}/svgl.json`, validateSvgl) || [];
+      const coll = collections(false);
+      for (const id of readRecent()) {
+        const ref = resolveId(id);
+        let row = null;
+        if (ref.kind === "iconify" && (ref.prefix === "simple-icons" || ref.prefix === "logos")) row = iconRow(ref.prefix, ref.name, coll, c, previewColor(c), queue);
+        else if (ref.kind === "svgl") {
+          // the logo's name and variant come from the cached svgl list
+          for (const x of list) {
+            const v = logoVariants(x, false).find((y) => y.url === ref.url);
+            if (v) {
+              row = logoRow(x, v, c, queue);
+              break;
+            }
+          }
+        }
+        if (row) items.push(Object.assign(row, { subtitle: `Recently copied · ${row.subtitle}` }));
+      }
+    }
+    enqueue(queue);
+    return { items, extra: rerunFields(query, queue.length) };
   }
   const r = backgroundList("svgl", SVGL, `${cacheDir()}/svgl.json`, TTL.svgl, 20, validateSvgl);
   const list = r.data || [];
@@ -1546,28 +1645,9 @@ function logoItems(query) {
   const items = [];
   const dark = darkTheme();
   for (const [, , x] of scored.slice(0, 25)) {
-    const add = (url, label, tile) => {
-      const ref = resolveId(`svgl:${url}`);
-      if (!ref) return;
-      const slug = fold(x.title).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "logo";
-      const variant = label.toLowerCase().replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "");
-      items.push(svgRow({
-        id: `svgl:${url}`,
-        name: variant ? `${slug}-${variant}` : slug,
-        title: label ? `${x.title} · ${label}` : x.title,
-        subtitle: [x.category.join(", "), "svgl", tile ? `for ${tile} backgrounds` : ""].filter(Boolean).join(" · "),
-        ref, preview: previewOrQueue(ref, previewColor(c), tile, queue), pending: "logo",
-        web: `https://svgl.app/?search=${encodeURIComponent(x.title)}`,
-        site: "svgl.app",
-      }, c));
-    };
-    for (const [key, label] of [["route", ""], ["wordmark", "Wordmark"]]) {
-      const v = x[key];
-      if (!v) continue;
-      if (v.default) add(v.default, label, null);
-      // show the variant that suits the Alfred theme first
-      const order = dark ? ["dark", "light"] : ["light", "dark"];
-      for (const t of order) if (v[t]) add(v[t], [label, t === "light" ? "Light" : "Dark"].filter(Boolean).join(" "), t);
+    for (const v of logoVariants(x, dark)) {
+      const row = logoRow(x, v, c, queue);
+      if (row) items.push(row);
     }
   }
   // Simple Icons and Iconify's colour logos when svgl has little
@@ -1803,6 +1883,18 @@ function loadSvg(ref) {
   return { svg: sanitizeSvg(svg) };
 }
 
+// Put a PNG on the clipboard as PNG and TIFF (some apps only read TIFF images). Tests use a private pasteboard.
+function copyImage(png) {
+  const pb = TESTING ? $.NSPasteboard.pasteboardWithName(env("IF_PASTEBOARD", "io.github.x-o-r-r-o.icon-finder.test")) : $.NSPasteboard.generalPasteboard;
+  const rep = $.NSBitmapImageRep.imageRepWithData(png);
+  if (rep.isNil()) return false;
+  pb.clearContents;
+  const okPng = pb.setDataForType(png, $.NSPasteboardTypePNG);
+  const tiff = rep.TIFFRepresentation;
+  if (!tiff.isNil()) pb.setDataForType(tiff, $.NSPasteboardTypeTIFF);
+  return !!okPng;
+}
+
 function uniquePath(dir, base, ext) {
   let p = `${dir}/${base}.${ext}`;
   for (let i = 2; exists(p) && i < 1000; i++) p = `${dir}/${base}-${i}.${ext}`;
@@ -1829,11 +1921,23 @@ function action(mode, id) {
   // A data URI in a CSS background can't inherit currentColor, so this is how those get a colour.
   let svg = outputSvg(r.svg, c.svgSize);
   if (c.copyColor && mode !== "png") svg = colorize(svg, c.copyColor);
+  addRecent(id);
   switch (mode) {
     case "svg": return svg;
     case "jsx": return svgToJsx(svg, ref.full);
     case "datauri": return svgDataUri(svg);
     case "png": {
+      if (c.pngFolder === "clipboard") {
+        const tmp = `${cacheDir()}/tmp/clip-${$.NSProcessInfo.processInfo.processIdentifier}.png`;
+        const ok = rasterize(r.svg, tmp, c.pngSize, { color: c.pngColor, fit: true });
+        const data = ok ? $.NSData.dataWithContentsOfFile(tmp) : $();
+        remove(tmp);
+        if (!ok || data.isNil() || !copyImage(data)) {
+          notify(`Couldn’t render ${ref.full}`);
+          return "";
+        }
+        return `Copied a ${c.pngSize} px PNG of ${ref.full}`;
+      }
       const dir = env("IF_PNG_DIR", TESTING ? `${cacheDir()}/out` : `${$.NSHomeDirectory().js}/${folderLabel(c)}`);
       mkdirp(dir);
       const base = ref.full.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "icon";

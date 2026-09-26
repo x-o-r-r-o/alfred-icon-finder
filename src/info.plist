@@ -238,6 +238,16 @@
 				<key>vitoclose</key>
 				<false/>
 			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>0159F452-FE6D-5E81-8480-F9544AC0FFF5</string>
+				<key>modifiers</key>
+				<integer>1179648</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
 		</array>
 		<key>E108BC91-3B0E-5F6C-A149-DD0E3521124C</key>
 		<array>
@@ -319,6 +329,16 @@
 				<string>BA07C154-61E8-5C7F-B201-E60BA0FA278D</string>
 				<key>modifiers</key>
 				<integer>1572864</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>0159F452-FE6D-5E81-8480-F9544AC0FFF5</string>
+				<key>modifiers</key>
+				<integer>1179648</integer>
 				<key>modifiersubtext</key>
 				<string></string>
 				<key>vitoclose</key>
@@ -775,7 +795,7 @@
 
 Search every icon set on [Iconify](https://icon-sets.iconify.design) (Lucide, Material, Tabler, Heroicons, Phosphor, Font Awesome and 200 more) via the `icon` keyword. Each result shows a preview of the icon.
 
-Add `@` and a set name to search one set, like `icon @lucide arrow` or `icon set:mdi home`. Type `icon @` to browse the sets. Put your favourite sets first, or search only them, in the Workflow’s Configuration; `@all` then searches everything. Type an exact name like `mdi:home` to jump to it.
+Add `@` and a set name to search one set, like `icon @lucide arrow` or `icon set:mdi home`. Type `icon @` to browse the sets. Put your favourite sets first, or search only them, in the Workflow’s Configuration; `@all` then searches everything. Type an exact name like `mdi:home` to jump to it. Icons you copied recently are listed before you type.
 
 Alternatively, search icons for the selected text via the Universal Action.
 
@@ -783,14 +803,15 @@ Alternatively, search icons for the selected text via the Universal Action.
 * &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Paste the SVG into the frontmost app.
 * &lt;kbd&gt;⌥&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy as a React (JSX) component.
 * &lt;kbd&gt;⌃&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the icon’s name, like `mdi:home`, `i-mdi-home` or `&lt;Icon icon="mdi:home" /&gt;` (set the format in the Workflow’s Configuration).
-* &lt;kbd&gt;⇧&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Save a PNG to Downloads and reveal it.
+* &lt;kbd&gt;⇧&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Save a PNG to Downloads and reveal it, or copy the PNG image (set in the Workflow’s Configuration).
 * &lt;kbd&gt;fn&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy a data URI for CSS.
+* &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;⇧&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the SVG’s URL, for an `&lt;img&gt;` tag or CSS.
 * &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;⌥&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Open the icon on Iconify.
 * &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;Y&lt;/kbd&gt; Quick Look the icon.
 
 ### Logos
 
-Search [svgl](https://svgl.app)’s SVG brand logos, with light and dark variants and wordmarks, via the `logo` keyword. When svgl has few matches, logos from Simple Icons and SVG Logos follow. The keys are the same as for icons.
+Search [svgl](https://svgl.app)’s SVG brand logos, with light and dark variants and wordmarks, via the `logo` keyword. When svgl has few matches, logos from Simple Icons and SVG Logos follow. Logos you copied recently are listed before you type. The keys are the same as for icons.
 
 ### Fonts
 
@@ -803,7 +824,7 @@ Search Google Fonts via the `font` keyword. Results show the category, weights, 
 * &lt;kbd&gt;⇧&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the Next.js `next/font` import.
 * &lt;kbd&gt;fn&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the stylesheet URL.
 
-Results are cached, so everything you searched before still works offline. Set the preview colour, the size and colour of copied SVGs (a colour replaces `currentColor`, which a data URI in CSS can’t inherit), the PNG size, colour and folder, and the preview cache size in the Workflow’s Configuration. Every keyword can be changed there too.
+Results are cached, so everything you searched before still works offline. Set the preview colour, the size and colour of copied SVGs (a colour replaces `currentColor`, which a data URI in CSS can’t inherit), the PNG size, colour and folder (or the clipboard), whether recently copied icons are shown, and the preview cache size in the Workflow’s Configuration. Every keyword can be changed there too.
 </string>
 	<key>uidata</key>
 	<dict>
@@ -1261,16 +1282,39 @@ Results are cached, so everything you searched before still works offline. Set t
 						<string>Desktop</string>
 						<string>desktop</string>
 					</array>
+					<array>
+						<string>Copy to the clipboard</string>
+						<string>clipboard</string>
+					</array>
 				</array>
 			</dict>
 			<key>description</key>
-			<string></string>
+			<string>Save PNGs to a folder and reveal them, or copy the image</string>
 			<key>label</key>
-			<string>Save PNGs to</string>
+			<string>PNG destination</string>
 			<key>type</key>
 			<string>popupbutton</string>
 			<key>variable</key>
 			<string>png_folder</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<true/>
+				<key>required</key>
+				<false/>
+				<key>text</key>
+				<string>Show recently copied icons and logos before you type a search</string>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string>Recently copied</string>
+			<key>type</key>
+			<string>checkbox</string>
+			<key>variable</key>
+			<string>show_recent</string>
 		</dict>
 		<dict>
 			<key>config</key>

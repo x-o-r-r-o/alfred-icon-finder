@@ -177,7 +177,7 @@ class Env:
     def vars(self, **extra):
         e = dict(os.environ)
         for k in list(e):
-            if k.startswith(("IF_", "if_", "icon_", "png_", "svg_", "preview_", "cache_limit")):
+            if k.startswith(("IF_", "if_", "icon_", "png_", "svg_", "preview_", "cache_limit", "show_recent", "copy_color", "name_format", "alfred_workflow_data")):
                 del e[k]
         e.update(alfred_workflow_cache=self.cache, IF_TEST="1", IF_SYNC="1", IF_UNTHROTTLED="1", alfred_theme_background=LIGHT,
                  IF_ICONIFY_API=MOCK.base + "/iconify", IF_SVGL_API=MOCK.base + "/svgl", IF_FONTS_META=MOCK.base + "/fonts",
@@ -1469,6 +1469,86 @@ class ActionTests(unittest.TestCase):
 
 # ---------- workflow ----------
 
+class Round4Tests(unittest.TestCase):
+    """Round 4: SVG URL (⌘⇧↩), recently copied icons, PNG to the clipboard."""
+
+    def setUp(self):
+        MOCK.reset()
+        self.e = Env()
+        self.data = os.path.join(self.e.cache, "Application Support", "Workflow Data", "io.github.x-o-r-r-o.icon-finder")
+
+    def test_svg_url(self):
+        d = self.e.sf("icon", "home")
+        first = d["items"][0]
+        prefix, name = first["arg"].split(":")[1:]
+        self.assertEqual(first["mods"]["cmd+shift"]["arg"], f"https://api.iconify.design/{prefix}/{name}.svg")
+        d = self.e.sf("icon", "mdi:home", copy_color=" #1F2937 ", svg_size="24")
+        self.assertEqual(d["items"][0]["mods"]["cmd+shift"]["arg"], "https://api.iconify.design/mdi/home.svg?color=%231f2937&height=24")
+        gh = self.e.sf("logo", "github")["items"][0]
+        self.assertEqual(gh["mods"]["cmd+shift"]["arg"], gh["arg"][len("svgl:"):])
+        self.assertTrue(gh["mods"]["cmd+shift"]["arg"].startswith(MOCK.base + "/svgl/library/"))
+
+    def test_recently_copied(self):
+        v = {"alfred_workflow_data": self.data}
+        self.assertEqual(len(self.e.sf("icon", "", **v)["items"]), 2)  # fresh install: no data folder yet
+        self.assertEqual(self.e.action("svg", "iconify:mdi:home", **v).returncode, 0)
+        self.assertEqual(self.e.action("jsx", "iconify:lucide:house", **v).returncode, 0)
+        self.assertTrue(os.path.exists(os.path.join(self.data, "recent.json")))
+        d = self.e.sf("icon", "", **v)
+        rows = d["items"][2:]
+        self.assertEqual([r["arg"] for r in rows], ["iconify:lucide:house", "iconify:mdi:home"])
+        self.assertTrue(rows[0]["subtitle"].startswith("Recently copied · "))
+        self.assertEqual([r["arg"] for r in self.e.sf("icon", "@mdi ", **v)["items"][2:]], ["iconify:mdi:home"])
+        # logos: svgl files are looked up in the cached list
+        gh = self.e.sf("logo", "github", **v)["items"][0]
+        self.e.action("svg", gh["arg"], **v)
+        logos = self.e.sf("logo", "", **v)["items"]
+        self.assertEqual(logos[1]["arg"], gh["arg"])
+        self.assertEqual(logos[1]["title"], gh["title"])
+        self.assertEqual(len(logos), 2)  # mdi/lucide icons are not logos
+        # turned off: nothing shown, nothing recorded
+        self.e.action("svg", "iconify:tabler:arrow-up", show_recent="0", **v)
+        self.assertEqual(len(self.e.sf("icon", "", show_recent="0", **v)["items"]), 2)
+        self.assertNotIn("iconify:tabler:arrow-up", [r.get("arg") for r in self.e.sf("icon", "", **v)["items"]])
+        # a damaged or foreign file is ignored
+        with open(os.path.join(self.data, "recent.json"), "w") as f:
+            f.write('["iconify:mdi:home", "svgl:https://evil.example/x.svg", 5, "../x"]')
+        self.assertEqual([r["arg"] for r in self.e.sf("icon", "", **v)["items"][2:]], ["iconify:mdi:home"])
+        with open(os.path.join(self.data, "recent.json"), "w") as f:
+            f.write("{not json")
+        self.assertEqual(len(self.e.sf("icon", "", **v)["items"]), 2)
+
+    def test_png_to_clipboard(self):
+        board = f"io.github.x-o-r-r-o.icon-finder.test.{os.getpid()}"
+        out = self.e.action("png", "iconify:mdi:home", png_folder="clipboard", png_size="128", IF_PASTEBOARD=board)
+        self.assertEqual(out.stdout, "Copied a 128 px PNG of mdi:home")
+        self.assertFalse(os.path.exists(os.path.join(self.e.cache, "out")))
+        js = ('ObjC.import("AppKit"); const pb = $.NSPasteboard.pasteboardWithName(%s); const d = pb.dataForType($.NSPasteboardTypePNG);'
+              'const t = pb.dataForType($.NSPasteboardTypeTIFF); const r = [d.isNil() ? 0 : d.length, t.isNil() ? 0 : t.length,'
+              '$.NSBitmapImageRep.imageRepWithData(d).pixelsWide]; pb.releaseGlobally; JSON.stringify(r)') % json.dumps(board)
+        png, tiff, width = map(int, json.loads(subprocess.run(["osascript", "-l", "JavaScript", "-e", js], capture_output=True, text=True).stdout))
+        self.assertGreater(png, 100)
+        self.assertGreater(tiff, 100)
+        self.assertEqual(width, 128)
+        sub = self.e.sf("icon", "mdi:home", png_folder="clipboard")["items"][0]["mods"]["shift"]["subtitle"]
+        self.assertEqual(sub, "Copy a 512 px PNG image")
+
+    def test_notification_only_when_populated(self):
+        """Actions connected to the notification (only shown if populated) print nothing when they fail, and no
+        trailing newline when they succeed (a JXA run() returning "" would still print a newline)."""
+        for mode, ident, extra in [("png", "iconify:mdi:missing-x", {}), ("png", "bogus", {}), ("nope", "iconify:mdi:home", {}),
+                                   ("png", "iconify:mdi:home", {"IF_ICONIFY_API": CLOSED}), ("svg", "iconify:mdi:missing-x", {})]:
+            out = subprocess.run(["osascript", "-l", "JavaScript", "./finder.js", "action", mode, ident], cwd=SRC,
+                                 env=self.e.vars(**extra), capture_output=True)
+            self.assertEqual(out.stdout, b"", (mode, ident))
+        for folder in ("downloads", "clipboard"):
+            out = subprocess.run(["osascript", "-l", "JavaScript", "./finder.js", "action", "png", "iconify:mdi:home"], cwd=SRC,
+                                 env=self.e.vars(png_folder=folder, IF_PASTEBOARD=f"io.github.x-o-r-r-o.icon-finder.test.n{os.getpid()}"), capture_output=True)
+            self.assertTrue(out.stdout and not out.stdout.endswith(b"\n"), out.stdout)
+        subprocess.run(["osascript", "-l", "JavaScript", "-e", 'ObjC.import("AppKit"); $.NSPasteboard.pasteboardWithName(%s).releaseGlobally' %
+                        json.dumps(f"io.github.x-o-r-r-o.icon-finder.test.n{os.getpid()}")], capture_output=True)
+
+
 class PlistTests(unittest.TestCase):
     def test_build_and_plist(self):
         subprocess.run([sys.executable, "tools/build.py"], cwd=ROOT, check=True, capture_output=True)
@@ -1487,11 +1567,11 @@ class PlistTests(unittest.TestCase):
             if kw:
                 self.assertRegex(kw, r"^\{var:keyword_\w+\}$")
         # every modifier the Script Filters offer is connected
-        mods = {"cmd": 1048576, "alt": 524288, "ctrl": 262144, "shift": 131072, "fn": 8388608, "cmd+alt": 1572864}
+        mods = {"cmd": 1048576, "alt": 524288, "ctrl": 262144, "shift": 131072, "fn": 8388608, "cmd+alt": 1572864, "cmd+shift": 1179648}
         for o in p["objects"]:
             if o["type"].endswith("scriptfilter"):
                 have = {c["modifiers"] for c in p["connections"][o["uid"]]}
-                need = {0, 1048576, 524288, 262144, 131072, 8388608} | ({1572864} if "font" not in o["config"]["script"] else set())
+                need = {0, 1048576, 524288, 262144, 131072, 8388608} | ({1572864, 1179648} if "font" not in o["config"]["script"] else set())
                 self.assertEqual(have, need, o["config"]["script"])
         self.assertTrue(p["readme"].startswith("## Usage"))
         self.assertNotIn("images/", p["readme"])

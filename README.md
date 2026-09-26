@@ -8,7 +8,7 @@ Search every icon set on [Iconify](https://icon-sets.iconify.design) (Lucide, Ma
 
 ![Searching icons](images/icon.png)
 
-Add `@` and a set name to search one set, like `icon @lucide arrow` or `icon set:mdi home`. Type `icon @` to browse the sets. Put your favourite sets first, or search only them, in the Workflow’s Configuration; `@all` then searches everything. Type an exact name like `mdi:home` to jump to it.
+Add `@` and a set name to search one set, like `icon @lucide arrow` or `icon set:mdi home`. Type `icon @` to browse the sets. Put your favourite sets first, or search only them, in the Workflow’s Configuration; `@all` then searches everything. Type an exact name like `mdi:home` to jump to it. Icons you copied recently are listed before you type.
 
 ![Filtering by icon set](images/icon-set.png)
 
@@ -20,14 +20,15 @@ Alternatively, search icons for the selected text via the Universal Action.
 * <kbd>⌘</kbd><kbd>↩</kbd> Paste the SVG into the frontmost app.
 * <kbd>⌥</kbd><kbd>↩</kbd> Copy as a React (JSX) component.
 * <kbd>⌃</kbd><kbd>↩</kbd> Copy the icon’s name, like `mdi:home`, `i-mdi-home` or `<Icon icon="mdi:home" />` (set the format in the Workflow’s Configuration).
-* <kbd>⇧</kbd><kbd>↩</kbd> Save a PNG to Downloads and reveal it.
+* <kbd>⇧</kbd><kbd>↩</kbd> Save a PNG to Downloads and reveal it, or copy the PNG image (set in the Workflow’s Configuration).
 * <kbd>fn</kbd><kbd>↩</kbd> Copy a data URI for CSS.
+* <kbd>⌘</kbd><kbd>⇧</kbd><kbd>↩</kbd> Copy the SVG’s URL, for an `<img>` tag or CSS.
 * <kbd>⌘</kbd><kbd>⌥</kbd><kbd>↩</kbd> Open the icon on Iconify.
 * <kbd>⌘</kbd><kbd>Y</kbd> Quick Look the icon.
 
 ### Logos
 
-Search [svgl](https://svgl.app)’s SVG brand logos, with light and dark variants and wordmarks, via the `logo` keyword. When svgl has few matches, logos from Simple Icons and SVG Logos follow. The keys are the same as for icons.
+Search [svgl](https://svgl.app)’s SVG brand logos, with light and dark variants and wordmarks, via the `logo` keyword. When svgl has few matches, logos from Simple Icons and SVG Logos follow. Logos you copied recently are listed before you type. The keys are the same as for icons.
 
 ![Searching logos](images/logo.png)
 
@@ -44,7 +45,7 @@ Search Google Fonts via the `font` keyword. Results show the category, weights, 
 * <kbd>⇧</kbd><kbd>↩</kbd> Copy the Next.js `next/font` import.
 * <kbd>fn</kbd><kbd>↩</kbd> Copy the stylesheet URL.
 
-Results are cached, so everything you searched before still works offline. Set the preview colour, the size and colour of copied SVGs (a colour replaces `currentColor`, which a data URI in CSS can’t inherit), the PNG size, colour and folder, and the preview cache size in the Workflow’s Configuration. Every keyword can be changed there too.
+Results are cached, so everything you searched before still works offline. Set the preview colour, the size and colour of copied SVGs (a colour replaces `currentColor`, which a data URI in CSS can’t inherit), the PNG size, colour and folder (or the clipboard), whether recently copied icons are shown, and the preview cache size in the Workflow’s Configuration. Every keyword can be changed there too.
 
 ![Workflow’s Configuration](images/configuration.png)
 

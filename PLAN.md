@@ -30,6 +30,7 @@ Raycast demand this workflow replaces (downloads, 2026-09-26):
 - [x] Offline: cached searches, lists and SVGs; back-off after network failures and HTTP 429
 - [x] Tests: fixtures + mock server, rasterising, JSX, prune; `IF_LIVE=1` smoke test
 - [x] Final review: the detached watchdog takes the worker/refresh lock itself (a Script Filter killed mid-spawn no longer stalls previews for 3 minutes); damaged or older-format cache files count as missing; test mode can't reach the real services or ~/Downloads
+- [x] Round 4 (real-world conditions): previews on macOS 13 (`_NSSVGImageRep` tried directly when NSImage doesn't read SVG data; the Quick Look fallback no longer draws opaque white squares with the icon in a corner); ⌘⇧↩ copies the SVG's URL; recently copied icons and logos before you type; ⇧↩ can copy the PNG image instead of saving it
 
 ## Tech
 - **Stack:** bash + JXA (ObjC bridge: NSImage/CoreSVG rasterising, NSTask + `/usr/bin/curl --parallel`); icon previews rendered to cached PNGs for Alfred icons.
@@ -51,7 +52,13 @@ Raycast demand this workflow replaces (downloads, 2026-09-26):
 - A worker or refresh that crashes without the watchdog noticing (e.g. the watchdog itself killed) leaves its lock for at most 3 minutes (1.5 for refreshes), after which it counts as stale.
 - Google Fonts has no documented metadata API; the workflow reads `fonts.google.com/metadata/fonts` (cached for 7 days, stale copy used offline).
 
+## macOS 13 compatibility (round 4)
+- JavaScript: nothing newer than Safari 16.0 (no regex lookbehind, `?.`/`??` are fine but unused, no `Array.prototype.findLast`/`toSorted`).
+- `/usr/bin/curl` on macOS 13 is 7.84+: `--parallel-immediate` (7.68) and `-w %{urlnum}` (7.75) are available.
+- SVG rendering: `NSImage(data:)` reading SVG is only confirmed on macOS 14+; `_NSSVGImageRep` (CoreSVG, macOS 10.15+) is used directly otherwise, then Quick Look (`qlmanage -t`, rendered on white and black and matted with Core Image filters available since macOS 10.15). Not yet run on a real macOS 13 machine: check previews there before calling it verified.
+
 ## Verify in real Alfred
+- [ ] ⌘⇧↩ copies the SVG URL; `icon`/`logo` with an empty query list recently copied items; ⇧↩ with "Copy to the clipboard" pastes as an image in Keynote/Slack.
 - [ ] Previews appear while typing (`rerun`), stop rerunning after 30 tries, and a fast typist never ends up with a stuck "pending" icon.
 - [ ] ⌘↩ pastes the SVG into the frontmost app; ⌃↩ copies the name in every "Copy names as" format.
 - [ ] ⇧↩ saves the PNG to Downloads/Desktop, reveals it in Finder and shows the notification.
@@ -76,3 +83,13 @@ Sources: alfred.app/submit, alfred.app/submit/styleguide, alfred.app/submit/scre
 - [ ] AI assistance disclosed in the README and the forum post
 - [ ] Version bumped in `src/info.plist`; `python3 tools/build.py --package`; GitHub release with the `.alfredworkflow` attached
 - [ ] Forum post in "Share your Workflows" with a screenshot, keywords, and the GitHub link
+
+## Ideas for v1.1
+Ranked by value for effort, from Raycast extension issues (raycast/extensions: Iconify, Svgl, Simple Icons, Lucide) and the features above.
+1. **Copy/paste the SVG as a file** (Svgl and Iconify requests, 2025): put the cached SVG on the pasteboard as a file URL for Figma, Finder, Slack and Mail.
+2. **Choose the ↩ action** (Iconify requests, 2025): a Workflow Configuration popup for what ↩ does (SVG, paste, JSX, name, PNG), routed with a conditional.
+3. **More component formats** (Svgl "Copy as Astro component", 2026): Vue/Svelte/Astro single-file components next to JSX, TSX with typed props.
+4. **Filters by icon style** (Iconify "Filter by pack and icon size", 2024): `grid:24`, `palette:mono|color`, `license:mit` using the `/collections` metadata already cached.
+5. **Pagination / more results** (Iconify "Pagination loading", 2026): a "Show more" row that reruns with `start=`.
+6. **Font previews**: render a font's name in the font itself for the result icon (needs downloading the font file; larger cache).
+7. **Clear recently copied** item or modifier, and per-keyword recents limits.

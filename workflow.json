@@ -233,8 +233,8 @@
     {
       "type": "popupbutton",
       "variable": "png_folder",
-      "label": "Save PNGs to",
-      "description": "",
+      "label": "PNG destination",
+      "description": "Save PNGs to a folder and reveal them, or copy the image",
       "config": {
         "default": "downloads",
         "pairs": [
@@ -245,8 +245,23 @@
           [
             "Desktop",
             "desktop"
+          ],
+          [
+            "Copy to the clipboard",
+            "clipboard"
           ]
         ]
+      }
+    },
+    {
+      "type": "checkbox",
+      "variable": "show_recent",
+      "label": "Recently copied",
+      "description": "",
+      "config": {
+        "default": true,
+        "required": false,
+        "text": "Show recently copied icons and logos before you type a search"
       }
     },
     {
@@ -431,6 +446,11 @@
       "mod": "cmd+alt"
     },
     {
+      "from": "sf_icon",
+      "to": "copy",
+      "mod": "cmd+shift"
+    },
+    {
       "from": "sf_logo",
       "to": "act_svg"
     },
@@ -463,6 +483,11 @@
       "from": "sf_logo",
       "to": "open",
       "mod": "cmd+alt"
+    },
+    {
+      "from": "sf_logo",
+      "to": "copy",
+      "mod": "cmd+shift"
     },
     {
       "from": "sf_font",
