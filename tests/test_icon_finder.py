@@ -379,6 +379,46 @@ class JsxTests(unittest.TestCase):
         self.assertEqual(E.js("componentName", "——"), "Icon")
 
 
+DENO = shutil.which("deno") or ("/opt/homebrew/bin/deno" if os.path.exists("/opt/homebrew/bin/deno") else None)
+
+
+@unittest.skipUnless(DENO, "Deno compiles the JSX output when it is installed (developer machine only)")
+class JsxCompileTests(unittest.TestCase):
+    """Compile the generated components with a real JSX compiler and render them to a tree."""
+
+    def render(self, jsx):
+        src = os.path.join(tempfile.mkdtemp(), "icon.jsx")
+        harness = ("/** @jsx h */\nconst h = (tag, props, ...children) => ({ tag, props: props || {}, children: children.flat() });\n"
+                   + jsx.replace("export default function ", "const Icon = function ", 1)
+                   + "\nconsole.log(JSON.stringify(Icon({ className: 'extra' })));\n")
+        with open(src, "w") as f:
+            f.write(harness)
+        out = subprocess.run([DENO, "run", "--quiet", "--no-remote", "--no-config", src], capture_output=True, text=True, timeout=60)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        return json.loads(out.stdout)
+
+    def test_compiles_and_renders(self):
+        svg = ('<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 10 10" xml:space="preserve">'
+               '<style>.a{fill:red}</style><use xlink:href="#p" style="fill:red;stroke-width:2;--brand:#fff" stroke-linecap="round"/>'
+               '<text x="1">a {b} &lt; c</text><path title=\'say "hi"\' d="M0"/></svg>')
+        tree = self.render(E.js("svgToJsx", svg, "mdi:test"))
+        self.assertEqual(tree["tag"], "svg")
+        self.assertEqual(tree["props"]["className"], "extra")  # {...props} spread onto the root
+        self.assertEqual(tree["props"]["xmlSpace"], "preserve")
+        style, use, text, path = tree["children"][0], tree["children"][1], tree["children"][2], tree["children"][3]
+        self.assertEqual(style["children"], [".a{fill:red}"])
+        self.assertEqual(use["props"], {"xlinkHref": "#p", "style": {"fill": "red", "strokeWidth": "2", "--brand": "#fff"}, "strokeLinecap": "round"})
+        self.assertEqual("".join(text["children"]), "a {b} < c")
+        self.assertEqual(path["props"]["title"], 'say "hi"')
+
+    def test_fixture_logos_compile(self):
+        for f in sorted(os.listdir(os.path.join(FIX, "svg"))):
+            tree = self.render(E.js("svgToJsx", fixture(f"svg/{f}", True), f))
+            self.assertEqual(tree["tag"], "svg", f)
+            flat = json.dumps(tree)
+            self.assertNotRegex(flat, r'"(stroke|fill|clip|stop|font)-[a-z]+":', f)
+
+
 class SvgTests(unittest.TestCase):
     def test_output_sizes(self):
         svg = fixture("svg/logos__github-icon.svg", True)
@@ -877,6 +917,37 @@ class Audit2Tests(unittest.TestCase):
         self.assertLess(t.index("Abril Fatface"), t.index("Playfair Display"))  # the category comes first
 
 
+class Audit3Tests(unittest.TestCase):
+    def setUp(self):
+        MOCK.reset()
+        self.e = Env()
+
+    def test_exact_name_needs_a_known_set(self):
+        d = self.e.sf("icon", "c:drive")
+        self.assertEqual(MOCK.count("/iconify/search"), 1)  # searched, not a broken "c:drive" icon
+        self.assertEqual(titles(d), ["No icons found"])
+        self.assertEqual(titles(self.e.sf("icon", "mdi:home")), ["home"])
+        self.assertEqual(MOCK.count("/iconify/search"), 1)
+
+    def test_unknown_action_does_no_work(self):
+        out = self.e.action("nonsense", "iconify:mdi:home")
+        self.assertEqual(out.stdout, "")
+        self.assertIn("Unknown action", out.stderr)
+        self.assertEqual(MOCK.count("/iconify"), 0)
+
+    def test_universal_action_file(self):
+        self.e.sf("icon", "mdi:home")
+        it = self.e.sf("icon", "mdi:home")["items"][0]
+        self.assertEqual(it["action"], {"file": os.path.join(self.e.cache, "svg/iconify/mdi/home.svg")})
+
+    def test_fixed_weight_axis_subtitle(self):
+        fonts = {"v": 1, "fonts": [{"n": "Fixed", "c": "Serif", "w": ["400"], "a": [["wght", 400, 400]], "p": 1, "d": [], "s": ["latin"]}]}
+        json.dump(fonts, open(os.path.join(self.e.cache, "fonts.json"), "w"))
+        it = self.e.sf("font", "fixed")["items"][0]
+        self.assertEqual(it["subtitle"], "Serif · 1 weight · #1 most popular")
+        self.assertIn("family=Fixed&", it["mods"]["fn"]["arg"])
+
+
 class PruneTests(unittest.TestCase):
     def test_prune_oldest_first(self):
         e = Env()
@@ -1055,7 +1126,6 @@ class ActionTests(unittest.TestCase):
         self.assertEqual(out.stdout, "")
         self.assertIn("not an SVG", out.stderr)
         self.assertEqual(self.e.action("svg", "iconify:../../etc:passwd").stdout, "")
-        self.assertEqual(self.e.action("nonsense", "iconify:mdi:home").stdout, "")
 
 
 # ---------- workflow ----------

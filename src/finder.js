@@ -970,7 +970,8 @@ function folderLabel(c) {
 
 // A row for anything backed by an SVG (icons and logos)
 function svgRow(o, c) {
-  const ql = exists(o.ref.svg) ? o.ref.svg : o.web;
+  const cached = exists(o.ref.svg);
+  const ql = cached ? o.ref.svg : o.web;
   const icon = o.preview && o.preview !== "failed" && o.preview !== "limited" ? { path: o.preview } : { path: `icons/${o.preview === "failed" ? "broken" : o.pending}.png` };
   return {
     title: o.title,
@@ -978,6 +979,7 @@ function svgRow(o, c) {
     arg: o.id,
     icon,
     quicklookurl: ql,
+    action: cached ? { file: o.ref.svg } : { text: o.name }, // Universal Actions on the SVG file
     text: { copy: o.name, largetype: o.name },
     mods: {
       cmd: { arg: o.id, valid: true, subtitle: "Paste the SVG into the frontmost app" },
@@ -1108,7 +1110,9 @@ function iconItems(query) {
     };
   }
   const coll = collections(false);
-  if (q.exact && !q.sets.length) {
+  // "mdi:home" jumps to that icon, unless "mdi" isn't an icon set ("c:drive" is searched instead)
+  const known = q.exact ? collections(true) : {};
+  if (q.exact && (!Object.keys(known).length || known[q.exact.prefix])) {
     const row = iconRow(q.exact.prefix, q.exact.name, coll, c, color, queue);
     enqueue(queue);
     return { items: [row], extra: rerunFields(query, queue.length) };
@@ -1400,7 +1404,7 @@ function fontItems(query) {
     const weights = new Set(f.w.map((k) => k.replace(/i$/, ""))).size;
     const italics = f.w.some((k) => k.endsWith("i"));
     const axis = f.a.find((a) => a[0] === "wght");
-    const style = axis ? `variable ${axis[1]}–${axis[2]}` : `${weights} weight${weights === 1 ? "" : "s"}`;
+    const style = axis && axis[2] > axis[1] ? `variable ${axis[1]}–${axis[2]}` : `${weights} weight${weights === 1 ? "" : "s"}`;
     const specimen = `https://fonts.google.com/specimen/${encodeURIComponent(f.n).replace(/%20/g, "+")}`;
     return {
       title: f.n,
@@ -1466,6 +1470,10 @@ function uniquePath(dir, base, ext) {
 
 function action(mode, id) {
   const c = cfg();
+  if (["svg", "jsx", "datauri", "png"].indexOf(mode) < 0) {
+    notify(`Unknown action ${mode}`);
+    return "";
+  }
   const ref = resolveId(id);
   if (!ref) {
     notify("Unknown item");
