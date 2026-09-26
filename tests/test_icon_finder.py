@@ -188,6 +188,12 @@ class Env:
         assert out.returncode == 0, out.stderr
         return json.loads(out.stdout)["result"]
 
+    def online(self):
+        """The connection is back: forget the offline/rate-limit back-off markers."""
+        for f in os.listdir(self.cache):
+            if f.startswith(("offline-", "ratelimited-")):
+                os.remove(os.path.join(self.cache, f))
+
     def files(self, sub, suffix=""):
         base = os.path.join(self.cache, sub)
         return sorted(os.path.relpath(os.path.join(d, f), base) for d, _, fs in os.walk(base) for f in fs if f.endswith(suffix))
@@ -443,7 +449,7 @@ class QueryTests(unittest.TestCase):
 
     def test_font_query(self):
         self.assertEqual(E.js("parseFontQuery", "serif:"), {"category": "Serif", "words": []})
-        self.assertEqual(E.js("parseFontQuery", "mono"), {"category": "Monospace", "words": []})
+        self.assertEqual(E.js("parseFontQuery", "mono"), {"category": "Monospace", "words": [], "also": "mono"})
         self.assertEqual(E.js("parseFontQuery", "Mono:Fira Code"), {"category": "Monospace", "words": ["fira", "code"]})
         self.assertEqual(E.js("parseFontQuery", "roboto mono"), {"category": None, "words": ["roboto", "mono"]})
         self.assertEqual(E.js("parseFontQuery", "Montsérrat"), {"category": None, "words": ["montserrat"]})
@@ -686,6 +692,7 @@ class IconFilterTests(unittest.TestCase):
         d = self.e.sf("icon", "home", IF_ICONIFY_API=CLOSED)
         self.assertEqual(titles(d), ["You’re offline"])
         # previously searched: stale results plus a notice
+        self.e.online()
         self.e.sf("icon", "home")
         for f in self.e.files("search"):
             p = os.path.join(self.e.cache, "search", f)
@@ -828,6 +835,48 @@ class Audit1Tests(unittest.TestCase):
         self.assertFalse(os.path.exists(big))
 
 
+class Audit2Tests(unittest.TestCase):
+    def setUp(self):
+        MOCK.reset()
+        self.e = Env()
+
+    def test_offline_backoff_skips_the_network(self):
+        # audit 2: every keystroke used to wait for the network (DNS timeouts) while offline
+        e = self.e
+        e.sf("icon", "home", IF_ICONIFY_API=CLOSED)
+        MOCK.reset()
+        d = e.sf("icon", "home")  # server reachable again, but within the back-off window
+        self.assertEqual(titles(d), ["You’re offline"])
+        self.assertEqual(MOCK.count("/iconify"), 0)
+        os.utime(os.path.join(e.cache, "offline-iconify"), (time.time() - 31,) * 2)
+        self.assertEqual(len(e.sf("icon", "home")["items"]), 64)
+
+    def test_rate_limit_backoff(self):
+        e = self.e
+        e.sf("icon", "home")
+        MOCK.mode["iconify"] = 429
+        d = e.sf("icon", "arrow")
+        self.assertIn("Rate limited", d["items"][0]["subtitle"])
+        self.assertTrue(os.path.exists(os.path.join(e.cache, "ratelimited-iconify")))
+        MOCK.reset()
+        d = e.sf("icon", "tree")
+        self.assertIn("Rate limited", d["items"][0]["subtitle"])
+        self.assertEqual(MOCK.count("/iconify"), 0)  # no requests for 3 minutes
+        self.assertEqual(len(e.sf("icon", "home")["items"]), 64)  # cached searches still work
+        # other services are unaffected
+        self.assertEqual(titles(e.sf("font", "lora"))[0], "Lora")
+
+    def test_malformed_svgl_url(self):
+        r = E.js("resolveId", "svgl:https://x.test/a%E0%A4%A.svg")
+        self.assertRegex(r["svg"], r"/svg/svgl/[0-9a-f]{16}\.svg$")
+
+    def test_font_category_word_also_matches_names(self):
+        t = titles(self.e.sf("font", "display"))
+        self.assertEqual(t[:2], ["Lobster", "Abril Fatface"])  # Display fonts by popularity
+        self.assertIn("Playfair Display", t)
+        self.assertLess(t.index("Abril Fatface"), t.index("Playfair Display"))  # the category comes first
+
+
 class PruneTests(unittest.TestCase):
     def test_prune_oldest_first(self):
         e = Env()
@@ -955,6 +1004,7 @@ class FontFilterTests(unittest.TestCase):
         self.assertEqual(titles(d)[0], "Lora")
         e2 = Env()
         self.assertEqual(titles(e2.sf("font", "lora", IF_FONTS_META=CLOSED)), ["You’re offline"])
+        e2.online()
         MOCK.mode["fonts"] = 500
         self.assertEqual(titles(e2.sf("font", "lora")), ["Couldn’t load Google Fonts"])
 

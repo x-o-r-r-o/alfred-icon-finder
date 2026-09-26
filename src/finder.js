@@ -199,14 +199,23 @@ function httpError(status) {
   return `Request failed (HTTP ${status})`;
 }
 
+function serviceFor(url) {
+  return url.startsWith(ICONIFY) ? "iconify" : url.startsWith(SVGL) ? "svgl" : "fonts";
+}
+
 // Fresh cache → cached data; otherwise fetch, and fall back to stale data when that fails.
+// While a service is backing off (rate limited or unreachable), the network isn't tried at all.
 function cachedJSON(url, path, ttl, timeout, transform) {
   const age = fileAge(path);
   if (age !== null && age < ttl) {
     const d = readJSON(path);
     if (d) return { data: d };
   }
-  const r = getJSON(url, timeout);
+  const service = serviceFor(url);
+  const wait = backoff(service);
+  const r = wait ? { status: Math.max(wait, 0), error: httpError(Math.max(wait, 0)) } : getJSON(url, timeout);
+  if (!wait && r.status === 429) touch(`${cacheDir()}/ratelimited-${service}`);
+  if (!wait && r.status === 0) touch(`${cacheDir()}/offline-${service}`);
   if (r.data !== undefined) {
     let d;
     try {
@@ -677,7 +686,13 @@ function resolveId(id) {
   m = /^svgl:(https?:\/\/[^\s"\\]+)$/.exec(id);
   if (m) {
     const url = m[1];
-    const base = decodeURIComponent(url.split(/[?#]/)[0].split("/").pop() || "").replace(/\.svg$/i, "");
+    let base = url.split(/[?#]/)[0].split("/").pop() || "";
+    try {
+      base = decodeURIComponent(base);
+    } catch (e) {
+      base = ""; // malformed %-escape: fall back to a hashed name
+    }
+    base = base.replace(/\.svg$/i, "");
     const file = /^[A-Za-z0-9][\w.-]{0,80}$/.test(base) ? `${base}-${hash(url).slice(0, 6)}` : hash(url);
     return { kind: "svgl", name: base || "logo", full: base || "logo", url, svg: `${d}/svg/svgl/${file}.svg`, key: `svgl/${file}` };
   }
@@ -732,13 +747,16 @@ function worker() {
   remove(lock);
 }
 
-// Back off from a service after HTTP 429 (3 minutes) or a network failure (1 minute), instead of marking
-// previews broken or rerunning the Script Filter against a service that can't answer.
+// Back off from a service after HTTP 429 (3 minutes) or a network failure (30 seconds), instead of marking
+// previews broken, rerunning the Script Filter, or waiting for DNS timeouts on every keystroke.
+// Returns false, or the status that caused it (429, or 0 for offline).
 function backoff(service) {
   const d = cacheDir();
   const limited = fileAge(`${d}/ratelimited-${service}`);
+  if (limited !== null && limited < 180) return 429;
   const offline = fileAge(`${d}/offline-${service}`);
-  return (limited !== null && limited < 180) || (offline !== null && offline < 60);
+  if (offline !== null && offline < 30) return -1;
+  return false;
 }
 function serviceOf(item) {
   return item.iconify ? "iconify" : "svgl";
@@ -1290,8 +1308,8 @@ function parseFontQuery(query) {
     category = FONT_CATEGORIES[m[1].toLowerCase()];
     q = m[2];
   } else if (FONT_CATEGORIES[q.toLowerCase()]) {
-    category = FONT_CATEGORIES[q.toLowerCase()];
-    q = "";
+    // a category word alone lists that category, then fonts named after it ("display" → Playfair Display)
+    return { category: FONT_CATEGORIES[q.toLowerCase()], words: [], also: fold(q) };
   }
   return { category, words: fold(q).split(/\s+/).filter(Boolean) };
 }
@@ -1370,6 +1388,10 @@ function fontItems(query) {
     scored.sort((a, b) => a[0] - b[0] || a[1].p - b[1].p);
     list = scored.map((x) => x[1]);
   } else list = list.slice().sort((a, b) => a.p - b.p);
+  if (q.also) {
+    const named = fonts.filter((f) => f.c !== q.category && matchScore(f.n, [q.also], "") !== null).sort((a, b) => a.p - b.p);
+    list = list.concat(named);
+  }
   const items = list.slice(0, 50).map((f) => {
     const href = cssHref(f);
     const link = `<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n<link href="${href}" rel="stylesheet">`;
