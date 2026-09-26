@@ -46,6 +46,8 @@ Search Google Fonts via the `font` keyword. Results show the category, weights, 
 
 Results are cached, so everything you searched before still works offline. Set the preview colour, the size and colour of copied SVGs (a colour replaces `currentColor`, which a data URI in CSS can’t inherit), the PNG size, colour and folder, and the preview cache size in the Workflow’s Configuration. Every keyword can be changed there too.
 
+![Workflow’s Configuration](images/configuration.png)
+
 ## Development
 
 ```bash

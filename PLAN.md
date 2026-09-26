@@ -29,6 +29,7 @@ Raycast demand this workflow replaces (downloads, 2026-09-26):
 - [ ] ~~Download family~~ (Google Fonts no longer offers a zip download endpoint; the specimen page has the button)
 - [x] Offline: cached searches, lists and SVGs; back-off after network failures and HTTP 429
 - [x] Tests: fixtures + mock server, rasterising, JSX, prune; `IF_LIVE=1` smoke test
+- [x] Final review: the detached watchdog takes the worker/refresh lock itself (a Script Filter killed mid-spawn no longer stalls previews for 3 minutes); damaged or older-format cache files count as missing; test mode can't reach the real services or ~/Downloads
 
 ## Tech
 - **Stack:** bash + JXA (ObjC bridge: NSImage/CoreSVG rasterising, NSTask + `/usr/bin/curl --parallel`); icon previews rendered to cached PNGs for Alfred icons.
@@ -42,6 +43,22 @@ Raycast demand this workflow replaces (downloads, 2026-09-26):
 2. [x] Actions + modifiers, Universal Actions / File Actions where relevant
 3. [x] Workflow Configuration, icons, error states (no network / missing dependency)
 4. [ ] README with screenshots, `python3 tools/build.py --package` release, forum post, then Gallery submission when invited
+
+## Known limitations
+- svgl locks an IP out for 3 minutes after more than 5 API requests in 10 seconds. The workflow stays at 3 per 10 seconds across processes and backs off after HTTP 429, but other svgl clients on the same network count too.
+- Iconify publishes no rate limit; searches are capped at 15 per 10 seconds, and preview downloads are batched per icon set.
+- Previews use AppKit's SVG renderer (CoreSVG), which doesn't support every SVG feature; a preview may differ from the copied SVG, which is untouched apart from sanitizing.
+- A worker or refresh that crashes without the watchdog noticing (e.g. the watchdog itself killed) leaves its lock for at most 3 minutes (1.5 for refreshes), after which it counts as stale.
+- Google Fonts has no documented metadata API; the workflow reads `fonts.google.com/metadata/fonts` (cached for 7 days, stale copy used offline).
+
+## Verify in real Alfred
+- [ ] Previews appear while typing (`rerun`), stop rerunning after 30 tries, and a fast typist never ends up with a stuck "pending" icon.
+- [ ] ⌘↩ pastes the SVG into the frontmost app; ⌃↩ copies the name in every "Copy names as" format.
+- [ ] ⇧↩ saves the PNG to Downloads/Desktop, reveals it in Finder and shows the notification.
+- [ ] The Universal Action "Search Icons" on selected text opens `icon` with that text.
+- [ ] ⌘Y Quick Look shows the cached SVG (or the Iconify/svgl page before it is cached).
+- [ ] Preview colour "Automatic" follows the Alfred theme (light and dark); svgl light/dark variants are ordered by theme.
+- [ ] The About This Workflow text and Workflow Configuration labels read well in Alfred Preferences.
 
 ## Release checklist (Alfred forum + Gallery)
 Sources: alfred.app/submit, alfred.app/submit/styleguide, alfred.app/submit/screenshots, alfredforum.com topics 23976 and 23388.

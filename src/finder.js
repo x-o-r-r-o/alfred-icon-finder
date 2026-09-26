@@ -22,12 +22,15 @@ const own = (o, k) => (o && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : 
 // ---------- configuration ----------
 
 const trimSlash = (s) => s.replace(/\/+$/, "");
-const ICONIFY = trimSlash(env("IF_ICONIFY_API", "https://api.iconify.design"));
-const SVGL = trimSlash(env("IF_SVGL_API", "https://api.svgl.app"));
+// Test mode never reaches the real services: a base URL the tests don't override points at a closed local port
+const TESTING = env("IF_TEST", "") === "1";
+const real = (url) => (TESTING ? "http://127.0.0.1:9/test-mode" : url);
+const ICONIFY = trimSlash(env("IF_ICONIFY_API", real("https://api.iconify.design")));
+const SVGL = trimSlash(env("IF_SVGL_API", real("https://api.svgl.app")));
 // svgl files are only downloaded from svgl itself (the list could point anywhere)
 const SVGL_ORIGIN = (/^https?:\/\/[^/]+/.exec(SVGL) || [""])[0];
 const svglFileUrl = (u) => typeof u === "string" && !/[\s"\\]/.test(u) && (u.startsWith("https://svgl.app/") || (!!SVGL_ORIGIN && u.startsWith(SVGL_ORIGIN + "/")));
-const FONTS_META = env("IF_FONTS_META", "https://fonts.google.com/metadata/fonts");
+const FONTS_META = env("IF_FONTS_META", real("https://fonts.google.com/metadata/fonts"));
 const UA = "alfred-icon-finder/1.0 (+https://github.com/x-o-r-r-o/alfred-icon-finder)";
 
 const DAY = 86400;
@@ -219,12 +222,20 @@ function serviceFor(url) {
   return url.startsWith(ICONIFY) ? "iconify" : url.startsWith(SVGL) ? "svgl" : "fonts";
 }
 
+// A cache file written by this or an older version, or damaged: data of the wrong shape counts as missing.
+// The shape is looked up by the transform that produced it.
+function readCache(path, transform) {
+  const d = readJSON(path);
+  const shape = transform && CACHE_SHAPES.get(transform);
+  return d !== null && (!shape || shape(d)) ? d : null;
+}
+
 // Fresh cache → cached data; otherwise fetch, and fall back to stale data when that fails.
 // While a service is backing off (rate limited or unreachable), the network isn't tried at all.
 function cachedJSON(url, path, ttl, timeout, transform) {
   const age = fileAge(path);
   if (age !== null && age < ttl) {
-    const d = readJSON(path);
+    const d = readCache(path, transform);
     if (d) return { data: d };
   }
   const service = serviceFor(url);
@@ -234,9 +245,9 @@ function cachedJSON(url, path, ttl, timeout, transform) {
     const until = Date.now() + (timeout + 2) * 1000;
     while (exists(lock) && Date.now() < until) $.NSThread.sleepForTimeInterval(0.1);
     const fresh = fileAge(path);
-    const d = fresh !== null && fresh < Math.max(ttl, timeout + 5) ? readJSON(path) : null;
+    const d = fresh !== null && fresh < Math.max(ttl, timeout + 5) ? readCache(path, transform) : null;
     if (d) return { data: d };
-    const stale = readJSON(path);
+    const stale = readCache(path, transform);
     const busy = { error: "Still loading: try again in a moment", status: -2, throttled: true };
     return stale ? Object.assign(busy, { data: stale, stale: true }) : busy;
   }
@@ -244,7 +255,7 @@ function cachedJSON(url, path, ttl, timeout, transform) {
   try {
     // another process may have fetched it while this one waited for the lock
     const again = fileAge(path);
-    const done = again !== null && again < ttl ? readJSON(path) : null;
+    const done = again !== null && again < ttl ? readCache(path, transform) : null;
     if (done) return { data: done };
     const wait = backoff(service);
     if (wait) r = { status: Math.max(wait, 0), error: httpError(Math.max(wait, 0)) };
@@ -269,7 +280,7 @@ function cachedJSON(url, path, ttl, timeout, transform) {
   } finally {
     remove(lock);
   }
-  const stale = readJSON(path);
+  const stale = readCache(path, transform);
   const out = { error: r.error, status: r.status, throttled: !!r.throttled };
   return stale ? Object.assign(out, { data: stale, stale: true }) : out;
 }
@@ -298,7 +309,7 @@ function allowRequest(service) {
 // Lists that change slowly (fonts, logos): use any cached copy at once and refresh in the background.
 function backgroundList(kind, url, path, ttl, timeout, transform) {
   const age = fileAge(path);
-  const cached = age === null ? null : readJSON(path);
+  const cached = age === null ? null : readCache(path, transform);
   if (cached) {
     if (age > ttl) spawn(["refresh", kind]);
     return { data: cached };
@@ -322,10 +333,13 @@ function acquireLock(path, expiry) {
 
 // Background jobs: at most one of each kind (the lock), killed after a hard timeout by a watchdog shell.
 // NSTask starts each child in its own process group, so Alfred ending the Script Filter doesn't end the job.
+// The detached watchdog takes the lock itself (mkdir), so a Script Filter that Alfred kills while spawning
+// never leaves a lock without a job behind; the watchdog releases it when the job is killed or crashes.
 const HARD_TIMEOUT = { worker: 150, refresh: 60 };
 const LOCK_EXPIRY = { worker: 180, refresh: 90 };
-const WATCHDOG = 'lock=$1; limit=$2; shift 2; "$@" & w=$!; n=0; while kill -0 "$w" 2>/dev/null; do ' +
-  'if [ "$n" -ge "$limit" ]; then kill -9 "$w"; rmdir "$lock"; break; fi; sleep 1; n=$((n+1)); done';
+const WATCHDOG = 'lock=$1; limit=$2; shift 2; mkdir "$lock" 2>/dev/null || exit 0; "$@" & w=$!; n=0; ' +
+  'while kill -0 "$w" 2>/dev/null; do if [ "$n" -ge "$limit" ]; then kill -9 "$w"; break; fi; sleep 1; n=$((n+1)); done; ' +
+  'wait "$w" || rmdir "$lock" 2>/dev/null';
 
 function lockPath(args) {
   return `${cacheDir()}/${args[0] === "worker" ? "worker" : "refresh-" + args[1]}.lock`;
@@ -334,8 +348,11 @@ function lockPath(args) {
 function spawn(args) {
   const kind = args[0] === "worker" ? "worker" : "refresh";
   const lock = lockPath(args);
-  if (!acquireLock(lock, LOCK_EXPIRY[kind])) return false;
+  // a job is running: don't start a process that would only find the lock taken
+  const age = fileAge(lock);
+  if (age !== null && age < LOCK_EXPIRY[kind]) return false;
   if (env("IF_SYNC", "") === "1") {
+    if (!acquireLock(lock, LOCK_EXPIRY[kind])) return false;
     // tests: run in-process so results are deterministic
     if (kind === "worker") worker();
     else {
@@ -346,9 +363,9 @@ function spawn(args) {
   }
   const script = env("IF_SCRIPT", `${FM.currentDirectoryPath.js}/finder.js`);
   const limit = parseInt(env("IF_HARD_TIMEOUT", ""), 10) || HARD_TIMEOUT[kind]; // tests shorten it
+  if (age !== null) remove(lock); // stale: its job was killed without releasing it
   const r = exec("/bin/bash", ["-c", `(${WATCHDOG}) </dev/null >/dev/null 2>&1 &`, "bash", lock, String(limit),
     "/usr/bin/osascript", "-l", "JavaScript", script, ...args]);
-  if (r.status !== 0) remove(lock);
   return r.status === 0;
 }
 
@@ -861,10 +878,11 @@ function previewPath(ref, color, tile) {
 function previewOrQueue(ref, color, tile, queue) {
   const png = previewPath(ref, color, tile);
   if (exists(png)) return png;
-  const failAge = fileAge(`${png}.fail`);
-  if (failAge !== null && failAge < TTL.fail) return "failed";
+  // the marker before the failure: the worker writes the failure before it removes the marker
   const markAge = fileAge(`${png}.rendering`);
   if (markAge !== null && markAge >= RENDER_HANG) return "failed";
+  const failAge = fileAge(`${png}.fail`);
+  if (failAge !== null && failAge < TTL.fail) return "failed";
   if (!exists(ref.svg) && backoff(ref.kind)) return "limited";
   queue.push({ url: ref.url, svg: ref.svg, png, color: tile ? (tile === "dark" ? "#ffffff" : "#000000") : color, tile: tile || null,
     iconify: ref.kind === "iconify" ? { prefix: ref.prefix, name: ref.name } : null });
@@ -904,30 +922,33 @@ function worker() {
   const started = Date.now();
   const budget = (HARD_TIMEOUT.worker - 30) * 1000;
   for (;;) {
-    while (Date.now() - started < budget) {
-      touch(lock);
-      const jobs = pendingJobs(d);
-      if (!jobs.length) break;
-      // every pending job in one round (one parallel download), newest first, each preview once
-      const seen = Object.create(null);
-      const items = [];
-      for (const j of jobs) {
-        const list = readJSON(j.p);
-        remove(j.p);
-        for (const it of Array.isArray(list) ? list : []) {
-          if (!it || typeof it.png !== "string" || typeof it.svg !== "string" || !it.png.startsWith(d + "/png/") || seen[it.png]) continue;
-          seen[it.png] = true;
-          items.push(it);
+    try {
+      while (Date.now() - started < budget) {
+        touch(lock);
+        const jobs = pendingJobs(d);
+        if (!jobs.length) break;
+        // every pending job in one round (one parallel download), newest first, each preview once
+        const seen = Object.create(null);
+        const items = [];
+        for (const j of jobs) {
+          const list = readJSON(j.p);
+          remove(j.p);
+          for (const it of Array.isArray(list) ? list : []) {
+            if (!it || typeof it.png !== "string" || typeof it.svg !== "string" || !it.png.startsWith(d + "/png/") || seen[it.png]) continue;
+            seen[it.png] = true;
+            items.push(it);
+          }
         }
+        processJob(items.slice(0, ROUND_MAX));
       }
-      processJob(items.slice(0, ROUND_MAX));
+      const pruned = fileAge(`${d}/pruned`);
+      if (pruned === null || pruned > 3600) {
+        touch(`${d}/pruned`);
+        prune();
+      }
+    } finally {
+      remove(lock); // also when rendering throws, so the next keystroke can start a worker
     }
-    const pruned = fileAge(`${d}/pruned`);
-    if (pruned === null || pruned > 3600) {
-      touch(`${d}/pruned`);
-      prune();
-    }
-    remove(lock);
     // a job queued after the last look found the lock still held and didn't start a worker: take it back
     if (Date.now() - started < budget && pendingJobs(d).length && mkdirOnce(lock)) continue;
     return;
@@ -975,15 +996,15 @@ function processJob(items) {
     const markAge = fileAge(mark);
     if (markAge !== null) {
       if (markAge >= RENDER_HANG) {
-        remove(mark);
         touch(fail);
+        remove(mark);
       }
       continue;
     }
     touch(mark);
     const ok = isSvg(svg) && rasterize(svg, it.png, 128, { color: it.color, tile: it.tile });
-    remove(mark);
     if (!ok) touch(fail);
+    remove(mark);
   }
 }
 
@@ -1232,7 +1253,7 @@ function svgRow(o, c) {
 
 function collections(fetch) {
   const path = `${cacheDir()}/collections.json`;
-  if (!fetch) return readJSON(path) || {};
+  if (!fetch) return readCache(path, validateCollections) || {};
   const r = backgroundList("collections", `${ICONIFY}/collections`, path, TTL.collections, 15, validateCollections);
   return r.data || {};
 }
@@ -1679,10 +1700,23 @@ function fontItems(query) {
   return { items };
 }
 
+// What each transform writes to the cache (see readCache)
+const isObj = (d) => !!d && typeof d === "object" && !Array.isArray(d);
+const isStrings = (a) => Array.isArray(a) && a.every((x) => typeof x === "string");
+const CACHE_SHAPES = new Map([
+  [validateCollections, (d) => isObj(d) && Object.values(d).every((v) => isObj(v) && typeof v.name === "string" && typeof v.total === "number")],
+  [validateSearch, (d) => isObj(d) && isStrings(d.icons) && d.icons.every((n) => /^[a-z0-9-]+:[a-z0-9_-]+$/.test(n)) && isObj(d.collections)
+    && Object.values(d.collections).every((v) => isObj(v) && typeof v.name === "string")],
+  [validateSvgl, (d) => Array.isArray(d) && d.every((x) => isObj(x) && typeof x.title === "string" && isStrings(x.category) && isObj(x.route)
+    && (x.wordmark === null || isObj(x.wordmark)))],
+  [slimFonts, (d) => isObj(d) && d.v === 1 && Array.isArray(d.fonts) && d.fonts.every((f) => isObj(f) && typeof f.n === "string"
+    && typeof f.c === "string" && isStrings(f.w) && Array.isArray(f.a) && f.a.every(Array.isArray) && typeof f.p === "number" && isStrings(f.d) && isStrings(f.s))],
+]);
+
 // ---------- actions ----------
 
 function notify(message) {
-  if (env("IF_TEST", "") === "1") {
+  if (TESTING) {
     $.NSFileHandle.fileHandleWithStandardError.writeData($(`notify: ${message}\n`).dataUsingEncoding($.NSUTF8StringEncoding));
     return;
   }
@@ -1748,7 +1782,7 @@ function action(mode, id) {
     case "jsx": return svgToJsx(svg, ref.full);
     case "datauri": return svgDataUri(svg);
     case "png": {
-      const dir = env("IF_PNG_DIR", `${$.NSHomeDirectory().js}/${folderLabel(c)}`);
+      const dir = env("IF_PNG_DIR", TESTING ? `${cacheDir()}/out` : `${$.NSHomeDirectory().js}/${folderLabel(c)}`);
       mkdirp(dir);
       const base = ref.full.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "icon";
       const out = uniquePath(dir, `${base}-${c.pngSize}`, "png");
@@ -1756,7 +1790,7 @@ function action(mode, id) {
         notify(`Couldn’t render ${ref.full}`);
         return "";
       }
-      if (env("IF_TEST", "") !== "1") $.NSWorkspace.sharedWorkspace.activateFileViewerSelectingURLs($([$.NSURL.fileURLWithPath(out)]));
+      if (!TESTING) $.NSWorkspace.sharedWorkspace.activateFileViewerSelectingURLs($([$.NSURL.fileURLWithPath(out)]));
       return `Saved ${out.split("/").pop()} to ${dir.split("/").pop()}`;
     }
   }
@@ -1792,11 +1826,14 @@ function run(argv) {
         worker();
         return;
       case "refresh":
-        refresh(rest[0]);
-        remove(lockPath(["refresh", rest[0]]));
+        try {
+          refresh(rest[0]);
+        } finally {
+          remove(lockPath(["refresh", rest[0]]));
+        }
         return;
       case "test":
-        if (env("IF_TEST", "") !== "1" || !TESTABLE[rest[0]]) throw new Error("test hooks are disabled");
+        if (!TESTING || !own(TESTABLE, rest[0])) throw new Error("test hooks are disabled");
         writeOut(JSON.stringify({ result: TESTABLE[rest[0]](...JSON.parse(rest[1] || "[]")) }));
         return;
     }

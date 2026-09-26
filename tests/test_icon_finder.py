@@ -1166,6 +1166,91 @@ class Audit4Tests(unittest.TestCase):
         self.assertIn("currentColor", e.action("svg", "iconify:mdi:home", copy_color="nope").stdout)
 
 
+class FinalReviewTests(unittest.TestCase):
+    def setUp(self):
+        MOCK.reset()
+        self.e = Env()
+
+    def lock_gone(self, e, name="worker.lock", timeout=10):
+        deadline = time.time() + timeout
+        while time.time() < deadline and os.path.exists(os.path.join(e.cache, name)):
+            time.sleep(0.1)
+        return not os.path.exists(os.path.join(e.cache, name))
+
+    def test_script_filter_never_holds_the_worker_lock(self):
+        # final review: the Script Filter took the lock and then launched the worker, so Alfred killing it in between
+        # left a lock without a worker and stalled previews for 3 minutes. The detached watchdog takes it now, and
+        # releases it when the worker can't start or crashes.
+        e = self.e
+        e.sf("icon", "home", IF_SYNC="", IF_SCRIPT="/nonexistent/finder.js")
+        self.assertTrue(self.lock_gone(e))
+        self.assertTrue(e.files("jobs"))  # still queued for the next worker
+        e.sf("icon", "home", IF_SYNC="", if_rerun_query="home", if_reruns="1")
+        deadline = time.time() + 40
+        while time.time() < deadline and (os.path.exists(os.path.join(e.cache, "worker.lock")) or len(e.files("png", ".png")) < 64):
+            time.sleep(0.2)
+        self.assertEqual(len(e.files("png", ".png")), 64)
+
+    def test_stale_lock_is_replaced(self):
+        e = self.e
+        lock = os.path.join(e.cache, "worker.lock")
+        os.makedirs(lock)
+        e.sf("icon", "home", IF_SYNC="")
+        time.sleep(1)
+        self.assertEqual(workers(), 0)  # a fresh lock: a worker is busy
+        os.utime(lock, (time.time() - 600,) * 2)
+        e.sf("icon", "home", IF_SYNC="")
+        deadline = time.time() + 40
+        while time.time() < deadline and len(e.files("png", ".png")) < 64:
+            time.sleep(0.2)
+        self.assertEqual(len(e.files("png", ".png")), 64)
+        self.assertTrue(self.lock_gone(e))
+
+    def test_refresh_lock_released(self):
+        e = self.e
+        e.sf("font", "inter")
+        os.utime(os.path.join(e.cache, "fonts.json"), (time.time() - 30 * 86400,) * 2)
+        self.assertEqual(titles(e.sf("font", "inter", IF_SYNC=""))[0], "Inter")  # stale list at once
+        self.assertTrue(self.lock_gone(e, "refresh-fonts.lock", 20))
+        self.assertLess(os.path.getmtime(os.path.join(e.cache, "fonts.json")), time.time())
+        self.assertGreater(os.path.getmtime(os.path.join(e.cache, "fonts.json")), time.time() - 60)
+
+    def test_damaged_cache_files(self):
+        # final review: valid JSON of the wrong shape (an older format, a damaged file) crashed logos and fonts
+        e = self.e
+        cases = {"svgl.json": ["logo", "github"], "fonts.json": ["font", "inter"], "collections.json": ["icon", "@"]}
+        for bad in ["{}", "[]", "null", "5", '"x"', '[1, null, {"title": 5}]', '{"v": 1, "fonts": [1, null]}', '{"a": null}']:
+            for f, (kind, q) in cases.items():
+                with open(os.path.join(e.cache, f), "w") as fh:
+                    fh.write(bad)
+                d = e.sf(kind, q)
+                self.assertNotIn("Something went wrong", titles(d), (f, bad))
+        for bad in ['{"icons": null}', '{"icons": [5, "x"]}', '{"icons": ["mdi:home"], "collections": {"mdi": null}}']:
+            for f in os.listdir(os.path.join(e.cache, "search")):
+                with open(os.path.join(e.cache, "search", f), "w") as fh:
+                    fh.write(bad)
+            d = e.sf("icon", "home")
+            self.assertNotIn("Something went wrong", titles(d), bad)
+            self.assertIn("home", titles(d))
+
+    def test_test_mode_never_reaches_real_services(self):
+        env = self.e.vars()
+        for k in ("IF_ICONIFY_API", "IF_SVGL_API", "IF_FONTS_META", "IF_PNG_DIR"):
+            del env[k]
+        run = lambda *a: subprocess.run(["osascript", "-l", "JavaScript", "./finder.js", *a], cwd=SRC, env=env,
+                                        capture_output=True, text=True, timeout=30)
+        for kind, q in (("font", "inter"), ("logo", "github"), ("icon", "home")):
+            d = json.loads(run(kind, q).stdout)
+            self.assertTrue(any(t in ("You’re offline", "Couldn’t load Google Fonts", "Couldn’t load logos") for t in titles(d)), d)
+        self.assertEqual(MOCK.hits, {})
+        shutil.copy(os.path.join(FIX, "svg", "mdi__home.svg"), os.path.join(self.e.cache, "home.svg"))
+        os.makedirs(os.path.join(self.e.cache, "svg", "iconify", "mdi"))
+        shutil.copy(os.path.join(FIX, "svg", "mdi__home.svg"), os.path.join(self.e.cache, "svg", "iconify", "mdi", "home.svg"))
+        out = run("action", "png", "iconify:mdi:home")
+        self.assertIn("Saved", out.stdout)
+        self.assertTrue(os.listdir(os.path.join(self.e.cache, "out")))  # not ~/Downloads
+
+
 class PruneTests(unittest.TestCase):
     def test_prune_oldest_first(self):
         e = Env()
