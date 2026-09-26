@@ -785,11 +785,7 @@ function rasterize(svgText, outPath, size, opts = {}) {
     W = Math.max(1, Math.round(r.w));
     H = Math.max(1, Math.round(r.h));
   }
-  let img = null, quicklook = false;
-  if (env("IF_FORCE_QLMANAGE", "") !== "1") {
-    img = $.NSImage.alloc.initWithData($(r.svg).dataUsingEncoding($.NSUTF8StringEncoding));
-    if (img.isNil() || img.representations.count === 0) img = null;
-  }
+  let img = env("IF_FORCE_QLMANAGE", "") === "1" ? null : svgImage(r.svg), quicklook = false;
   if (!img) {
     img = quicklookImage(r.svg, Math.round(size - 2 * pad));
     quicklook = true;
@@ -806,16 +802,15 @@ function rasterize(svgText, outPath, size, opts = {}) {
     const inset = size * 0.03;
     $.NSBezierPath.bezierPathWithRoundedRectXRadiusYRadius($.NSMakeRect(inset, inset, size - 2 * inset, size - 2 * inset), size * 0.18, size * 0.18).fill;
   }
-  let w = r.w, h = r.h;
+  let from = $.NSZeroRect;
   if (quicklook) {
-    // the thumbnail is aspect-fitted already: keep its proportions
-    const iw = img.size.width, ih = img.size.height;
-    const k = Math.min((W - 2 * pad) / iw, (H - 2 * pad) / ih);
-    w = iw * k;
-    h = ih * k;
+    // the thumbnail is square, with the drawing aspect-fitted and centred: cut out the drawing's own box
+    const iw = img.size.width, ih = img.size.height, a = r.w / r.h;
+    const sw = a >= iw / ih ? iw : ih * a, sh = a >= iw / ih ? iw / a : ih;
+    from = $.NSMakeRect((iw - sw) / 2, (ih - sh) / 2, sw, sh);
   }
   $.NSGraphicsContext.currentContext.imageInterpolation = $.NSImageInterpolationHigh;
-  img.drawInRectFromRectOperationFraction($.NSMakeRect((W - w) / 2, (H - h) / 2, w, h), $.NSZeroRect, $.NSCompositingOperationSourceOver, 1);
+  img.drawInRectFromRectOperationFraction($.NSMakeRect((W - r.w) / 2, (H - r.h) / 2, r.w, r.h), from, $.NSCompositingOperationSourceOver, 1);
   $.NSGraphicsContext.restoreGraphicsState;
   const png = rep.representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $({}));
   if (png.isNil()) return false;
@@ -823,20 +818,75 @@ function rasterize(svgText, outPath, size, opts = {}) {
   return png.writeToFileAtomically(outPath, true);
 }
 
-// Fallback for systems where NSImage can't read SVG: Quick Look's thumbnailer.
+// SVG text → NSImage with AppKit's SVG renderer (CoreSVG). NSImage reads SVG data directly on recent macOS
+// (confirmed on 14+); the private _NSSVGImageRep behind it exists since macOS 10.15 (SDWebImageSVGCoder relies on
+// it), so it is tried directly before the Quick Look fallback. IF_FORCE_SVGREP=1 (tests) skips NSImage.
+function svgImage(svg) {
+  const data = $(svg).dataUsingEncoding($.NSUTF8StringEncoding);
+  if (env("IF_FORCE_SVGREP", "") !== "1") {
+    const img = $.NSImage.alloc.initWithData(data);
+    if (!img.isNil() && img.representations.count > 0) return img;
+  }
+  const cls = $.NSClassFromString("_NSSVGImageRep");
+  if (cls.isNil() || !cls.instancesRespondToSelector("initWithData:")) return null;
+  const rep = cls.alloc.initWithData(data);
+  if (rep.isNil() || !(rep.size.width > 0) || !(rep.size.height > 0)) return null;
+  const img = $.NSImage.alloc.initWithSize(rep.size);
+  img.addRepresentation(rep);
+  return img;
+}
+
+// Last resort when AppKit can't read SVG: Quick Look's thumbnailer. It renders into an opaque white page, so the
+// SVG is rendered twice, on white and on black, and the transparency is recovered from the difference
+// (alpha = 1 − (white − black), colour = black / alpha). Quick Look lays the SVG out like a web page: a fixed
+// width/height would draw it small in a corner, so only the viewBox is kept.
 function quicklookImage(svg, size) {
   const dir = `${cacheDir()}/tmp/ql-${hash(svg)}-${$.NSProcessInfo.processInfo.processIdentifier}`;
   mkdirp(dir);
-  const f = `${dir}/image.svg`;
-  writeText(f, svg);
-  exec("/usr/bin/qlmanage", ["-t", "-s", String(size), "-o", dir, f]);
-  const png = `${f}.png`;
-  let img = null;
-  if (exists(png)) {
-    const i = $.NSImage.alloc.initWithContentsOfFile(png);
-    if (!i.isNil()) img = i;
+  try {
+    let s = svgBox(svg) ? sizeSvg(svg, null, null) : svg;
+    const root = svgRoot(s);
+    if (!root || root.selfClosing) return null;
+    const black = `${s.slice(0, root.end)}<rect x="-100000" y="-100000" width="200000" height="200000" fill="#000" style="fill:#000;stroke:none;opacity:1"/>${s.slice(root.end)}`;
+    writeText(`${dir}/w.svg`, s);
+    writeText(`${dir}/b.svg`, black);
+    exec("/usr/bin/qlmanage", ["-t", "-s", String(Math.max(16, size)), "-o", dir, `${dir}/w.svg`, `${dir}/b.svg`]);
+    if (!exists(`${dir}/w.svg.png`) || !exists(`${dir}/b.svg.png`)) return null;
+    return matte(`${dir}/w.svg.png`, `${dir}/b.svg.png`);
+  } finally {
+    remove(dir);
   }
-  remove(dir);
+}
+
+// Difference matting with Core Image, without colour management (the maths needs the raw values)
+function matte(onWhitePath, onBlackPath) {
+  ObjC.import("CoreImage");
+  const noCS = $({ [$.kCIImageColorSpace.js]: $.NSNull.null });
+  const load = (p) => $.CIImage.imageWithContentsOfURLOptions($.NSURL.fileURLWithPath(p), noCS);
+  const white = load(onWhitePath), black = load(onBlackPath);
+  if (white.isNil() || black.isNil()) return null;
+  const filter = (name, params) => {
+    const f = $.CIFilter.filterWithName(name);
+    if (f.isNil()) throw new Error(`Core Image filter ${name} is missing`);
+    for (const k of Object.keys(params)) f.setValueForKey(params[k], k);
+    return f.outputImage;
+  };
+  const v = (x, y, z, w) => $.CIVector.vectorWithXYZW(x, y, z, w);
+  const zero = v(0, 0, 0, 0);
+  const diff = filter("CISubtractBlendMode", { inputImage: black, inputBackgroundImage: white }); // 1 − alpha
+  const alphaGrey = filter("CIColorMatrix", { inputImage: diff, inputRVector: v(0, -1, 0, 0), inputGVector: v(0, -1, 0, 0),
+    inputBVector: v(0, -1, 0, 0), inputAVector: zero, inputBiasVector: v(1, 1, 1, 1) });
+  const mask = filter("CIColorMatrix", { inputImage: diff, inputRVector: zero, inputGVector: zero, inputBVector: zero,
+    inputAVector: v(0, -1, 0, 0), inputBiasVector: v(0, 0, 0, 1) });
+  const colour = filter("CIDivideBlendMode", { inputImage: alphaGrey, inputBackgroundImage: black });
+  const out = filter("CIBlendWithAlphaMask", { inputImage: colour, inputBackgroundImage: $.CIImage.emptyImage, inputMaskImage: mask });
+  const ctx = $.CIContext.contextWithOptions($({ [$.kCIContextWorkingColorSpace.js]: $.NSNull.null, [$.kCIContextOutputColorSpace.js]: $.NSNull.null }));
+  const cg = ctx.createCGImageFromRect(out, white.extent);
+  if (!cg) return null;
+  const rep = $.NSBitmapImageRep.alloc.initWithCGImage(cg);
+  if (rep.isNil()) return null;
+  const img = $.NSImage.alloc.initWithSize($.NSMakeSize(rep.pixelsWide, rep.pixelsHigh));
+  img.addRepresentation(rep);
   return img;
 }
 
@@ -939,7 +989,7 @@ function worker() {
             items.push(it);
           }
         }
-        processJob(items.slice(0, ROUND_MAX));
+        processJob(items.slice(0, ROUND_MAX), started + budget);
       }
       const pruned = fileAge(`${d}/pruned`);
       if (pruned === null || pruned > 3600) {
@@ -977,13 +1027,15 @@ function serviceOf(item) {
   return item.iconify ? "iconify" : "svgl";
 }
 
-function processJob(items) {
+// deadline: stop rendering then (the Quick Look fallback is slower); the Script Filter's rerun queues the rest again
+function processJob(items, deadline) {
   const d = cacheDir();
   const seen = Object.create(null);
   const missing = items.filter((it) => !exists(it.svg) && it.svg.startsWith(d + "/svg/") && (seen[it.svg] ? false : (seen[it.svg] = true)));
   const fetchable = missing.filter((it) => !backoff(serviceOf(it)));
   if (fetchable.length) fetchSvgs(fetchable);
   for (const it of items) {
+    if (deadline && Date.now() > deadline) break;
     if (exists(it.png)) continue;
     const fail = `${it.png}.fail`;
     const failAge = fileAge(fail);

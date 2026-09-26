@@ -240,7 +240,8 @@ def titles(data):
 # ---------- PNG inspection ----------
 
 def read_png(path):
-    b = open(path, "rb").read()
+    with open(path, "rb") as f:
+        b = f.read()
     assert b[:8] == b"\x89PNG\r\n\x1a\n"
     i, idat, w, h = 8, b"", 0, 0
     while i < len(b):
@@ -662,7 +663,38 @@ class RasterTests(unittest.TestCase):
         box = ink_box(out)
         self.assertIsNotNone(box)
         self.assertGreater(box["w"], 100)
+        self.assertLess(box["h"], 40)  # round 4: not a white square
+        w, h, rows = read_png(out)
+        self.assertEqual(pixel(rows, 2, 2)[3], 0)
 
+    def test_quicklook_fallback_transparency_and_size(self):
+        """Round 4 (macOS 13): Quick Look draws on opaque white and lays out fixed sizes small in a corner."""
+        p = os.path.join(E.cache, "r", "ql-home.png")
+        self.assertTrue(E.js("rasterize", fixture("svg/mdi__home.svg", True), p, 128, {"color": "#ff0000"}, IF_FORCE_QLMANAGE="1"))
+        box, w, h, rows = ink_box(p), *read_png(p)
+        self.assertGreater(box["w"], 90)
+        self.assertEqual(box["rgb"], (255, 0, 0))
+        self.assertEqual(pixel(rows, 2, 2)[3], 0)
+        half = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><style>rect{fill:#f00}</style><rect width="10" height="10" fill-opacity=".5"/></svg>'
+        p = os.path.join(E.cache, "r", "ql-half.png")
+        self.assertTrue(E.js("rasterize", half, p, 64, {}, IF_FORCE_QLMANAGE="1"))
+        r, g, b, a = pixel(read_png(p)[2], 32, 32)
+        self.assertGreater(r, 240)
+        self.assertTrue(110 < a < 145, a)
+        # saved PNGs keep the drawing's proportions
+        p = os.path.join(E.cache, "r", "ql-fit.png")
+        self.assertTrue(E.js("rasterize", fixture("svg/svgl__github_wordmark_light.svg", True), p, 256, {"fit": True}, IF_FORCE_QLMANAGE="1"))
+        box = ink_box(p)
+        self.assertEqual(box["size"][0], 256)
+        self.assertGreater(box["w"], 240)
+
+    def test_svg_image_rep_path(self):
+        """Round 4: _NSSVGImageRep (macOS 10.15+) is used directly when NSImage doesn't read SVG data."""
+        p = os.path.join(E.cache, "r", "rep.png")
+        self.assertTrue(E.js("rasterize", fixture("svg/mdi__home.svg", True), p, 128, {"color": "#00ff00"}, IF_FORCE_SVGREP="1"))
+        box = ink_box(p)
+        self.assertGreater(box["w"], 90)
+        self.assertGreater(box["rgb"][1], 200)
 
 
 # ---------- Script Filters end to end ----------
