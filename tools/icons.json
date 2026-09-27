@@ -11,6 +11,6 @@
   "font-display": ["textformat.size.larger", "#DB2777"],
   "font-hand": ["signature", "#059669"],
   "info": ["info.circle.fill", "#64748B"],
-  "offline": ["wifi.slash", "#EA580C"],
+  "offline": ["wifi.slash", "#D97706"],
   "error": ["exclamationmark.triangle.fill", "#DC2626"]
 }

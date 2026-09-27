@@ -209,7 +209,7 @@ function download(url, outPath, timeout, maxBytes) {
 function getJSON(url, timeout) {
   const tmp = `${cacheDir()}/tmp/${hash(url)}-${$.NSProcessInfo.processInfo.processIdentifier}.json`;
   const status = download(url, tmp, timeout);
-  if (status !== 200) return { status, error: httpError(status) };
+  if (status !== 200) return { status, error: httpError(status, serviceFor(url)) };
   let text = readText(tmp) || "";
   remove(tmp);
   text = text.replace(/^\)\]\}'\s*/, ""); // Google's XSSI guard
@@ -220,13 +220,15 @@ function getJSON(url, timeout) {
   }
 }
 
-function httpError(status) {
+const SERVICE_NAMES = new Map([["iconify", "Iconify"], ["svgl", "svgl"], ["fonts", "Google Fonts"]]);
+function httpError(status, service) {
+  const who = SERVICE_NAMES.get(service) || "The server";
   if (status === 0) return "No internet connection";
-  if (status === 429) return "Rate limited by the server: wait a minute and try again";
-  if (status === 403) return "Blocked by the server (HTTP 403): a VPN or network filter can cause this, try again later";
+  if (status === 429) return `${who} is limiting requests: try again in a minute`;
+  if (status === 403) return `${who} blocked the request: a VPN or network filter can cause this, try again later (HTTP 403)`;
   if (status === 404) return "Not found (HTTP 404)";
-  if (status >= 500) return `The server is having problems (HTTP ${status})`;
-  return `Request failed (HTTP ${status})`;
+  if (status >= 500) return `${who} is having problems (HTTP ${status})`;
+  return `${who} returned an error (HTTP ${status})`;
 }
 
 function serviceFor(url) {
@@ -279,7 +281,7 @@ function fetchLocked(url, path, ttl, timeout, transform, lock) {
     const done = again !== null && again < ttl ? readCache(path, transform) : null;
     if (done) return { data: done };
     const wait = backoff(service);
-    if (wait) r = { status: Math.max(wait, 0), error: httpError(Math.max(wait, 0)) };
+    if (wait) r = { status: Math.max(wait, 0), error: httpError(Math.max(wait, 0), service) };
     else if (!allowRequest(service)) r = { status: -2, error: "Too many requests: slowing down for a few seconds", throttled: true };
     else {
       r = getJSON(url, timeout);
@@ -1298,7 +1300,7 @@ function output(items, extra = {}) {
 }
 
 function offlineNotice(error, what) {
-  return info(error === "No internet connection" ? "Offline: showing cached results" : `${error}: showing cached results`,
+  return info(error === "No internet connection" ? "Offline: showing saved results" : `${error}: showing saved results`,
     `${what} will update when the connection is back`, "offline");
 }
 
@@ -1430,7 +1432,7 @@ function setSuggestions(q, c, query) {
     info(`${v.name}  @${k}`, `${v.total.toLocaleString("en-US")} icons${v.category ? " · " + v.category : ""}${v.license ? " · " + v.license : ""} · ↩ Search this set`, "set", {
       valid: false, autocomplete: `${before}@${k} `,
     }));
-  if (!Object.keys(coll).length) items.push(info("Couldn’t load the list of icon sets", "Check the internet connection, or type the set’s prefix, like @mdi", "offline"));
+  if (!Object.keys(coll).length) items.push(info("Couldn’t load the list of icon sets", "Check your internet connection, or type the set’s prefix, like @mdi", "offline"));
   else if (!items.length) items.push(info("No matching icon set", `Nothing matches “${clean(p)}”. Type @ to list every set`, "info"));
   const all = info("All icon sets  @all", "Search every set, ignoring the preferred sets", "set", { autocomplete: `${before}@all ` });
   if (!p || "all".startsWith(p)) items.push(all);
@@ -1544,7 +1546,7 @@ function iconItems(query) {
     items.push(info("Searching…", r.error, "pending"));
   } else if (r.error) {
     if (!items.length) {
-      items.push(info(r.error === "No internet connection" ? "You’re offline" : "Couldn’t search Iconify", r.error === "No internet connection" ? "Connect to the internet to search icons" : r.error, r.error === "No internet connection" ? "offline" : "error"));
+      items.push(info(r.error === "No internet connection" ? "Can’t reach Iconify" : "Couldn’t search Iconify", r.error === "No internet connection" ? "Check your internet connection" : r.error, r.error === "No internet connection" ? "offline" : "error"));
     } else if (!r.throttled) items.push(offlineNotice(r.error, "Icon results"));
   } else if (!items.length) {
     const where = prefixes.length ? ` in ${prefixes.map((p) => (own(coll, p) ? coll[p].name : "@" + p)).join(", ")}` : "";
@@ -1698,7 +1700,7 @@ function logoItems(query) {
   const throttled = !!(r.throttled || si.throttled);
   if (!items.length && throttled) items.push(info("Searching…", error, "pending"));
   else if (!items.length) {
-    if (error) items.push(info(offline ? "You’re offline" : "Couldn’t load logos", offline ? "Connect to the internet to search logos" : error, offline ? "offline" : "error"));
+    if (error) items.push(info(offline ? `Can’t reach ${r.error === "No internet connection" ? "svgl" : "Iconify"}` : "Couldn’t load logos", offline ? "Check your internet connection" : error, offline ? "offline" : "error"));
     else items.push(info("No logos found", `Nothing matches “${clean(query)}” in svgl or Simple Icons`, "info"));
   } else {
     for (const [res, name] of [[r, "svgl"], [si, "Simple Icons"]]) {
@@ -1810,7 +1812,7 @@ function fontItems(query) {
   if (!r.data && r.throttled) return { items: [info("Loading Google Fonts…", "The font list downloads once, then works offline", "pending")], extra: rerunFields(query, 0, true) };
   if (!r.data) {
     const off = r.error === "No internet connection";
-    return { items: [info(off ? "You’re offline" : "Couldn’t load Google Fonts", off ? "The font list downloads once, then works offline" : r.error, off ? "offline" : "error")] };
+    return { items: [info(off ? "Can’t reach Google Fonts" : "Couldn’t load Google Fonts", off ? "Check your internet connection" : r.error, off ? "offline" : "error")] };
   }
   const fonts = r.data.fonts || [];
   const popRank = new Map();
@@ -1904,7 +1906,7 @@ function loadSvg(ref) {
       noteFailure("svgl", status);
     }
     svg = status === 200 ? readText(ref.svg) : null;
-    if (svg === null) return { error: httpError(status) };
+    if (svg === null) return { error: httpError(status, ref.kind === "iconify" ? "iconify" : "svgl") };
     if (!isSvg(svg)) {
       remove(ref.svg);
       return { error: "The download is not an SVG" };

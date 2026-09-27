@@ -782,7 +782,7 @@ class IconFilterTests(unittest.TestCase):
         self.assertFalse(os.path.exists("/tmp/pwned"))
 
     def test_api_errors(self):
-        for code, text in [(429, "Rate limited"), (500, "HTTP 500"), ("garbage", "Unexpected response")]:
+        for code, text in [(429, "Iconify is limiting requests: try again in a minute"), (500, "HTTP 500"), ("garbage", "Unexpected response")]:
             e = Env()
             MOCK.mode["iconify"] = code
             d = e.sf("icon", "home")
@@ -792,7 +792,9 @@ class IconFilterTests(unittest.TestCase):
 
     def test_offline(self):
         d = self.e.sf("icon", "home", IF_ICONIFY_API=CLOSED)
-        self.assertEqual(titles(d), ["You’re offline"])
+        self.assertEqual(titles(d), ["Can’t reach Iconify"])
+        self.assertEqual(d["items"][0]["subtitle"], "Check your internet connection")
+        self.assertEqual(d["items"][0]["icon"]["path"], "icons/offline.png")
         # previously searched: stale results plus a notice
         self.e.online()
         self.e.sf("icon", "home")
@@ -801,11 +803,12 @@ class IconFilterTests(unittest.TestCase):
             os.utime(p, (time.time() - 3 * 86400,) * 2)
         d = self.e.sf("icon", "home", IF_ICONIFY_API=CLOSED)
         self.assertEqual(len(d["items"]), 65)
-        self.assertEqual(d["items"][-1]["title"], "Offline: showing cached results")
+        self.assertEqual(d["items"][-1]["title"], "Offline: showing saved results")
+        self.assertEqual(d["items"][-1]["icon"]["path"], "icons/offline.png")
         # never searched, but the SVGs are cached: match on names
         d = self.e.sf("icon", "home outline", IF_ICONIFY_API=CLOSED)
         self.assertIn("iconify:mdi:home-outline", [i.get("arg") for i in d["items"]])
-        self.assertEqual(d["items"][-1]["title"], "Offline: showing cached results")
+        self.assertEqual(d["items"][-1]["title"], "Offline: showing saved results")
 
     def test_missing_and_invalid_icons(self):
         self.e.sf("icon", "broken")
@@ -900,7 +903,7 @@ class Audit1Tests(unittest.TestCase):
         d = self.e.sf("icon", "@", IF_ICONIFY_API=CLOSED)
         self.assertEqual(titles(d)[0], "Couldn’t load the list of icon sets")
         d = self.e.sf("icon", "arrow @lucide", IF_ICONIFY_API=CLOSED)
-        self.assertEqual(titles(d), ["You’re offline"])  # searched, not stuck on set suggestions
+        self.assertEqual(titles(d), ["Can’t reach Iconify"])  # searched, not stuck on set suggestions
 
     def test_prune_throttle_search_cap_and_old_jobs(self):
         e = self.e
@@ -948,7 +951,7 @@ class Audit2Tests(unittest.TestCase):
         e.sf("icon", "home", IF_ICONIFY_API=CLOSED)
         MOCK.reset()
         d = e.sf("icon", "home")  # server reachable again, but within the back-off window
-        self.assertEqual(titles(d), ["You’re offline"])
+        self.assertEqual(titles(d), ["Can’t reach Iconify"])
         self.assertEqual(MOCK.count("/iconify"), 0)
         os.utime(os.path.join(e.cache, "offline-iconify"), (time.time() - 31,) * 2)
         self.assertEqual(len(e.sf("icon", "home")["items"]), 64)
@@ -958,11 +961,11 @@ class Audit2Tests(unittest.TestCase):
         e.sf("icon", "home")
         MOCK.mode["iconify"] = 429
         d = e.sf("icon", "arrow")
-        self.assertIn("Rate limited", d["items"][0]["subtitle"])
+        self.assertIn("Iconify is limiting requests", d["items"][0]["subtitle"])
         self.assertTrue(os.path.exists(os.path.join(e.cache, "ratelimited-iconify")))
         MOCK.reset()
         d = e.sf("icon", "tree")
-        self.assertIn("Rate limited", d["items"][0]["subtitle"])
+        self.assertIn("Iconify is limiting requests", d["items"][0]["subtitle"])
         self.assertEqual(MOCK.count("/iconify"), 0)  # no requests for 3 minutes
         self.assertEqual(len(e.sf("icon", "home")["items"]), 64)  # cached searches still work
         # other services are unaffected
@@ -1278,7 +1281,7 @@ class FinalReviewTests(unittest.TestCase):
                                         capture_output=True, text=True, timeout=30)
         for kind, q in (("font", "inter"), ("logo", "github"), ("icon", "home")):
             d = json.loads(run(kind, q).stdout)
-            self.assertTrue(any(t in ("You’re offline", "Couldn’t load Google Fonts", "Couldn’t load logos") for t in titles(d)), d)
+            self.assertTrue(any(t in ("Can’t reach Google Fonts", "Can’t reach svgl", "Can’t reach Iconify", "Couldn’t load Google Fonts", "Couldn’t load logos") for t in titles(d)), d)
         self.assertEqual(MOCK.hits, {})
         shutil.copy(os.path.join(FIX, "svg", "mdi__home.svg"), os.path.join(self.e.cache, "home.svg"))
         os.makedirs(os.path.join(self.e.cache, "svg", "iconify", "mdi"))
@@ -1344,7 +1347,9 @@ class LogoFilterTests(unittest.TestCase):
 
     def test_offline_and_stale(self):
         d = self.e.sf("logo", "github", IF_SVGL_API=CLOSED, IF_ICONIFY_API=CLOSED)
-        self.assertEqual(titles(d), ["You’re offline"])
+        self.assertEqual(titles(d), ["Can’t reach svgl"])
+        self.assertEqual(d["items"][0]["subtitle"], "Check your internet connection")
+        self.assertEqual(d["items"][0]["icon"]["path"], "icons/offline.png")
         self.e.sf("logo", "vercel")
         path = os.path.join(self.e.cache, "svgl.json")
         os.utime(path, (time.time() - 2 * 86400,) * 2)
@@ -1362,7 +1367,7 @@ class LogoFilterTests(unittest.TestCase):
         MOCK.mode["svgl"] = "garbage"
         d = self.e.sf("logo", "github")
         self.assertIn("github", titles(d))  # Simple Icons still answers
-        self.assertEqual(d["items"][-1]["title"], "Couldn’t load svgl")  # audit 1: no "cached results" claim without a cache
+        self.assertEqual(d["items"][-1]["title"], "Couldn’t load svgl")  # audit 1: no "saved results" claim without a cache
         self.assertEqual(d["items"][-1]["subtitle"], "Unexpected response from the server")
 
 
@@ -1415,7 +1420,7 @@ class FontFilterTests(unittest.TestCase):
         d = self.e.sf("font", "lora", IF_FONTS_META=CLOSED)
         self.assertEqual(titles(d)[0], "Lora")
         e2 = Env()
-        self.assertEqual(titles(e2.sf("font", "lora", IF_FONTS_META=CLOSED)), ["You’re offline"])
+        self.assertEqual(titles(e2.sf("font", "lora", IF_FONTS_META=CLOSED)), ["Can’t reach Google Fonts"])
         e2.online()
         MOCK.mode["fonts"] = 500
         self.assertEqual(titles(e2.sf("font", "lora")), ["Couldn’t load Google Fonts"])
